@@ -23,6 +23,7 @@ class SyncYouTubeChannels extends Command {
     $item=$res->getItems()[0]??null;if(!$item)continue;
     $stats=$item->getStatistics();$details=$item->getContentDetails();
     $link->channel->update(['subscriber_count'=>$stats?->getSubscriberCount(),'view_count'=>$stats?->getViewCount(),'last_synced_at'=>now()]);
+    YouTubeMetricMonthly::updateOrCreate(['youtube_channel_id'=>$link->channel->id,'metric_month'=>now()->startOfMonth()->toDateString()],['subscriber_count'=>$stats?->getSubscriberCount(),'view_count'=>$stats?->getViewCount(),'collected_at'=>now()]);
     $uploads=$details?->getRelatedPlaylists()?->getUploads();if(!$uploads)continue;
     $playlist=$yt->playlistItems->listPlaylistItems('snippet,contentDetails',['playlistId'=>$uploads,'maxResults'=>3]);
     foreach($playlist->getItems() as $entry) {
