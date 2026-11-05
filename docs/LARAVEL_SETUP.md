@@ -1,7 +1,7 @@
 # Laravel kurulum notları
 
 ## Hedef mimari
-- Laravel 12, PHP 8.3+, MySQL 8+
+- Laravel 13, PHP 8.3+, MySQL 8+
 - Google OAuth 2.0 (Laravel Socialite)
 - YouTube Data API v3 (Google API PHP Client)
 - Blade arayüzü; sade, mobil uyumlu, sıcak vintage tasarım
