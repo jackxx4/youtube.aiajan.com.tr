@@ -8,7 +8,7 @@ class YouTubeChannelService {
     public function listMine(string $accessToken): Collection {
         $client = new GoogleClient();
         $client->setApplicationName(config('app.name'));
-        $client->setAccessToken($accessToken);
+        $client->setAccessToken(['access_token' => $accessToken]);
         $youtube = new YouTube($client);
         $response = $youtube->channels->listChannels('snippet,statistics', ['mine'=>true,'maxResults'=>50]);
         return collect($response->getItems())->map(function ($item) {
