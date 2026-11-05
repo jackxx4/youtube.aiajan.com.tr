@@ -76,14 +76,14 @@
     <main class="main">
         <header class="top">
             <span>Bağımsız içerik üretici topluluğu</span>
-            @auth
+            @if(auth()->check())
                 <form method="post" action="{{ route('logout') }}">
                     @csrf
                     <button class="btn secondary" type="submit">Çıkış yap</button>
                 </form>
             @else
                 <a class="btn" href="{{ route('login') }}">Giriş yap</a>
-            @endauth
+            @endif
         </header>
         <section class="content">
             @if(session('status'))
