@@ -26,12 +26,12 @@ class GoogleAuthController extends Controller {
     if(!$user->exists) $user->username=$this->uniqueUsername($google->getNickname() ?: $google->getName() ?: 'creator');
     $user->name=$google->getName() ?: 'YouTube Kullanıcısı'; $user->email=$google->getEmail(); $user->avatar_url=$google->getAvatar(); $user->status='active'; $user->save();
     foreach($available as $data) YouTubeChannel::updateOrCreate(['youtube_channel_id'=>$data['youtube_channel_id']],collect($data)->except(['subscriber_count','view_count'])->all()+['last_synced_at'=>now()]);
-    YouTubeOAuthToken::updateOrCreate(['user_id'=>$user->id],[
-     'access_token_enc'=>Crypt::encryptString($google->token),
-     'refresh_token_enc'=>$google->refreshToken ? Crypt::encryptString($google->refreshToken) : null,
-     'expires_at'=>$google->expiresIn ? now()->addSeconds($google->expiresIn) : null,
-     'scopes'=>'openid email profile https://www.googleapis.com/auth/youtube.readonly'
-    ]);
+    $storedToken=YouTubeOAuthToken::firstOrNew(['user_id'=>$user->id]);
+    $storedToken->access_token_enc=Crypt::encryptString($google->token);
+    if($google->refreshToken) $storedToken->refresh_token_enc=Crypt::encryptString($google->refreshToken);
+    $storedToken->expires_at=$google->expiresIn ? now()->addSeconds($google->expiresIn) : null;
+    $storedToken->scopes='openid email profile https://www.googleapis.com/auth/youtube.readonly';
+    $storedToken->save();
     session(['available_youtube_channels'=>$available->pluck('youtube_channel_id')->all()]); return $user;
    });
    Auth::login($user,true); request()->session()->regenerate(); return redirect()->route('channels.select');
