@@ -1,0 +1,5 @@
+@extends('layouts.app')
+@section('title','Ana Sayfa')
+@section('content')
+<div class="eyebrow">İçerik üreticileri için</div><h1 class="h1">Keşfet. Tanış. Bağ kur.</h1><p class="lead">YouTube kanallarını ve içerik üreticilerini keşfetmek için sade bir topluluk alanı. Platform içi takipler YouTube aboneliklerinden ayrıdır.</p><div style="margin-top:25px"><a class="btn" href="{{ route('login') }}">Platforma giriş yap</a></div><div class="grid"><div class="card"><div class="eyebrow">01 / Keşif</div><h2 style="font:25px 'DM Serif Display'">Yeni üreticiler</h2><p class="muted">Farklı kanalları ve üreticileri keşfet.</p></div><div class="card"><div class="eyebrow">02 / Topluluk</div><h2 style="font:25px 'DM Serif Display'">Platform takibi</h2><p class="muted">YouTube aboneliğinden bağımsız olarak üreticileri takip et.</p></div><div class="card"><div class="eyebrow">03 / İçerik</div><h2 style="font:25px 'DM Serif Display'">Video keşfi</h2><p class="muted">Kanal videolarına göz at; izleme tamamen isteğe bağlıdır.</p></div></div>
+@endsection
