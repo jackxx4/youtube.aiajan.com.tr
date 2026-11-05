@@ -1,0 +1,9 @@
+@extends('layouts.app')
+@section('title','Kullanıcı Keşfi')
+@section('content')
+<div class="eyebrow">{{ $pool==='supporter'?'Destekçi havuzu':'Normal havuz' }}</div><h1 class="h1">Yeni üreticilerle tanış</h1><p class="lead">Listeden tam 3 kişiyi seçerek platformda takip edebilirsin. Bu işlem YouTube kanalına abone olmaz.</p>
+@if($users->isEmpty())<div class="card" style="margin-top:22px"><p>Şu an bu havuzda gösterilecek yeni profil bulunmuyor. Daha sonra tekrar deneyebilirsin.</p></div>@else
+<form method="post" action="{{ route('discovery.follow',$pool) }}" class="card" style="margin-top:22px">@csrf<div class="grid" style="margin-top:0">@foreach($users as $person)<label class="card check" style="cursor:pointer"><input type="checkbox" name="user_ids[]" value="{{ $person->id }}" class="person-choice"><span class="person">@if($person->activeChannelLink?->channel?->thumbnail_url)<img class="avatar" src="{{ $person->activeChannelLink->channel->thumbnail_url }}" alt="">@else<span class="avatar"></span>@endif<span><strong>{{ $person->activeChannelLink?->channel?->title ?? $person->name }}</strong><span class="muted" style="display:block">{{ '@'.$person->username }}</span></span></span></label>@endforeach</div><div style="display:flex;align-items:center;gap:15px;margin-top:22px"><button class="btn" id="follow-submit" disabled>Seçilen 3 kişiyi takip et</button><span class="muted" id="choice-count">0 / 3 seçildi</span></div></form>
+<script>const boxes=[...document.querySelectorAll('.person-choice')],button=document.getElementById('follow-submit'),counter=document.getElementById('choice-count');function refresh(){let n=boxes.filter(x=>x.checked).length;counter.textContent=n+' / 3 seçildi';button.disabled=n!==3;boxes.forEach(x=>x.disabled=!x.checked&&n>=3)}boxes.forEach(x=>x.addEventListener('change',refresh));</script>
+@endif
+@endsection
