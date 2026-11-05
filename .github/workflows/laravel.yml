@@ -21,4 +21,5 @@ jobs:
           restore-keys: ${{ runner.os }}-composer-
       - run: composer validate --no-check-publish
       - run: composer install --no-interaction --prefer-dist
+      - run: php artisan view:cache
       - run: php artisan test
