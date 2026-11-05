@@ -1,7 +1,7 @@
 # Uygulama Durumu
 
 ## Laravel deposuna eklenenler
-- Laravel 12 Composer yapılandırması ve uygulama başlangıç dosyaları
+- Laravel 13 Composer yapılandırması ve uygulama başlangıç dosyaları
 - Google OAuth giriş/callback/çıkış akışı
 - YouTube Data API üzerinden OAuth ile erişilebilir kanal listesini alma
 - Kanal seçimi ve 30 günlük değişim kuralı
