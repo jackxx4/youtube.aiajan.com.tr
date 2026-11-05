@@ -1,6 +1,7 @@
 <?php
 namespace App\Console\Commands;
 use App\Models\UserChannelLink; use App\Models\Video;
+use App\Models\YouTubeMetricMonthly;
 use Google\Client as GoogleClient; use Google\Service\YouTube;
 use Illuminate\Console\Command; use Illuminate\Support\Facades\Crypt; use Throwable;
 class SyncYouTubeChannels extends Command {
