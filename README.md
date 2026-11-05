@@ -3,7 +3,7 @@
 YouTube içerik üreticileri için kanal keşfi ve platform içi topluluk uygulaması.
 
 ## Teknoloji
-- Laravel 12
+- Laravel 13
 - PHP 8.3+
 - MySQL 8+
 - Laravel Socialite (Google OAuth 2.0)
