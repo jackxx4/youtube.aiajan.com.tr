@@ -1,32 +1,29 @@
 # Uygulama Durumu
 
-Bu depo, sohbet sırasında kararlaştırılan ürün gereksinimlerinden ve başlangıç teknik iskeletinden oluşturulmuştur. Hosting üzerinde çalışır durumda olduğu veya gerçek Google/YouTube entegrasyonunun tamamlandığı anlamına gelmez.
+## Laravel deposuna eklenenler
+- Laravel 12 Composer yapılandırması ve uygulama başlangıç dosyaları
+- Google OAuth giriş/callback/çıkış akışı
+- YouTube Data API üzerinden OAuth ile erişilebilir kanal listesini alma
+- Kanal seçimi ve 30 günlük değişim kuralı
+- OAuth access/refresh tokenlarının Laravel Crypt ile şifrelenmesi
+- Kullanıcı profili, platform takipleri ve normal/destekçi keşif ekranları
+- Video keşif ekranı; standart YouTube embed kontrolleri
+- Admin özet ekranı
+- MySQL Laravel migration dosyaları
+- Kanal/video senkronizasyonu ve destekçi süresi komutları
+- Plesk kurulum rehberi
 
-## Depoya aktarılanlar
+## Henüz tamamlanması / yapılandırılması gerekenler
+- Google Cloud OAuth Client ID/Secret ve YouTube API projesi
+- Plesk sunucusunda Composer install, APP_KEY, .env ve migration çalıştırılması
+- Hosting üzerinde gerçek HTTP/OAuth testi
+- Kullanıcı bloklarının öneri sorgularına tam entegrasyonu ve admin kullanıcı yönetimi
+- Katkı/ödeme sağlayıcısı seçimi ve ödeme akışı
+- Günlük öneri algoritmasının üretim verisiyle iyileştirilmesi
+- Aylık metrik snapshot zamanlayıcısı
+- Yetkilendirme, rate limit, gizlilik ve hesap silme akışlarının tamamlanması
+- PHPUnit testleri, güvenlik taraması ve yük testleri
+- Güncel YouTube API politika incelemesi
 
-- Ürün özeti ve kurulum rehberi
-- Ayrıntılı teknik şartname
-- MySQL başlangıç şeması
-- Composer bağımlılık tanımı
-- Gizli bilgileri dışarıda tutan örnek yapılandırma
-- Git ignore kuralları
-
-## Henüz uygulanması gerekenler
-
-- Google OAuth giriş, callback, logout ve state/CSRF kontrolleri
-- Token şifreleme, yenileme ve iptal akışı
-- YouTube kanal listeleme ve kanal seçimi
-- 30 günlük kanal değiştirme kuralı ve aktif kanal benzersizliği
-- Kanal/video senkronizasyonu ve kota yönetimi
-- Platform takipleri, engelleme ve günlük öneri motoru
-- Destekçi katkı sağlayıcısı entegrasyonu ve 30 günlük statü
-- Yönetici paneli ve aylık metrik toplama
-- Arayüz sayfaları, erişilebilirlik ve mobil uyumluluk
-- Testler, hata yönetimi, rate limiting, yedekleme ve canlıya geçiş kontrolleri
-
-## Önemli teknik notlar
-
-- SQL şeması başlangıç taslağıdır; üretim veritabanında çalıştırılmadan önce migration ve MySQL sürüm uyumluluğu test edilmelidir.
-- YouTube API yanıtları ve gömülü oynatıcı olayları, bir insanın videoyu dikkatle izlediğinin kesin kanıtı değildir.
-- YouTube politika incelemesi tamamlanmadan abonelik oluşturma veya izlemeyi görev şartına bağlayan mekanikler canlıya alınmamalıdır.
-- Gerçek OAuth secret, refresh token, veritabanı parolası veya ödeme anahtarı bu depoya konulmamalıdır.
+## Yayına alma durumu
+GitHub kodu tek başına canlıya alınmış uygulama değildir. Plesk üzerinde bağımlılık kurulumu, çevre değişkenleri, veritabanı migration'ları, dosya izinleri ve Google OAuth bilgileri gereklidir. Bu işlemler hosting üzerinde henüz doğrulanmamıştır.
