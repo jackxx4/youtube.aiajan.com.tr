@@ -14,7 +14,7 @@
 | `DB_NAME` | MySQL veritabanı adı | Hosting kontrol paneli |
 | `DB_USER` | MySQL kullanıcı adı | Hosting kontrol paneli |
 | `DB_PASSWORD` | MySQL parolası | Hosting kontrol paneli |
-| `TOKEN_ENCRYPTION_KEY` | OAuth tokenlarını sunucuda şifrelemek için anahtar | Sunucuda güvenli şekilde üretilecek |
+| `APP_KEY (Laravel)` | OAuth tokenlarını sunucuda şifrelemek için anahtar | Laravel artisan key:generate ile sunucuda üretilecek |
 | `CONTRIBUTION_PROVIDER` | Katkı/ödeme sağlayıcısı adı | Sağlayıcı seçilince |
 | `CONTRIBUTION_API_KEY` | Katkı sağlayıcısı API anahtarı | Seçilen sağlayıcı |
 | `CONTRIBUTION_API_SECRET` | Katkı sağlayıcısı gizli anahtarı | Seçilen sağlayıcı |
@@ -26,7 +26,7 @@
 2. YouTube Data API v3 hizmetini etkinleştirin.
 3. OAuth consent screen / Google Auth Platform ayarlarını tamamlayın.
 4. Web application türünde OAuth istemcisi oluşturun.
-5. Yetkili yönlendirme URI'si olarak `https://youtube.aiajan.com.tr/callback.php` ekleyin.
+5. Yetkili yönlendirme URI'si olarak `https://youtube.aiajan.com.tr/auth/google/callback` ekleyin.
 6. Üretilen Client ID ve Client Secret değerlerini sunucu ortam değişkenlerine kaydedin.
 7. YouTube Data API için API key oluşturup uygun API kısıtlamalarını uygulayın.
 
@@ -45,3 +45,7 @@ OAuth kapsamları kullanım amacına göre en az yetki ilkesiyle seçilmelidir. 
 ## Önemli
 
 YouTube API key, kullanıcı adına OAuth yetkisi vermez. Kullanıcıya özel kanal bilgileri ve hesap üzerinde işlem gerektiren özellikler için uygun OAuth izni ve kullanıcı onayı gerekir.
+
+
+## Laravel notu
+OAuth tokenları Laravel Crypt ile şifrelenir. Şifreleme anahtarı .env içindeki APP_KEY değeridir. APP_KEY üretildikten sonra değiştirilmesi mevcut şifreli tokenları okunamaz hale getirebilir; yedekli ve güvenli saklayın.
