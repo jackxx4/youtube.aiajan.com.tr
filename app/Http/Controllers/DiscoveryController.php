@@ -11,28 +11,40 @@ class DiscoveryController extends Controller {
  public function users(Request $request,string $pool='normal'): View {
   abort_unless(in_array($pool,['normal','supporter'],true),404); $me=$request->user();
   $followed=PlatformFollow::where('follower_user_id',$me->id)->pluck('followed_user_id');
-  $shown=DB::table('user_impressions')->where('viewer_user_id',$me->id)->where('pool_type',$pool)->whereDate('shown_at',today())->pluck('shown_user_id');
-  $query=User::where('status','active')->where('id','<>',$me->id)->whereNotIn('id',$followed)->whereNotIn('id',$shown)->whereHas('activeChannelLink');
-  if($pool==='supporter') $query->whereHas('supporterStatuses',fn($q)=>$q->where('status','active')->where('ends_at','>',now()));
-  else $query->whereDoesntHave('supporterStatuses',fn($q)=>$q->where('status','active')->where('ends_at','>',now()));
-  $users=$query->inRandomOrder()->limit(10)->get()->load('activeChannelLink.channel');
+  $base=User::where('status','active')->where('id','<>',$me->id)->whereNotIn('id',$followed)->whereHas('activeChannelLink');
+  if($pool==='supporter') $base->whereHas('supporterStatuses',fn($q)=>$q->where('status','active')->where('ends_at','>',now()));
+  else $base->whereDoesntHave('supporterStatuses',fn($q)=>$q->where('status','active')->where('ends_at','>',now()));
+  $seen=DB::table('user_impressions')->where('viewer_user_id',$me->id)->where('pool_type',$pool)->pluck('shown_user_id');
+  $users=(clone $base)->whereNotIn('id',$seen)->inRandomOrder()->limit(10)->get();
+  if($users->isEmpty()){DB::table('user_impressions')->where('viewer_user_id',$me->id)->where('pool_type',$pool)->delete();$users=(clone $base)->inRandomOrder()->limit(10)->get();}
+  $users->load('activeChannelLink.channel');
   foreach($users as $candidate) DB::table('user_impressions')->insert(['viewer_user_id'=>$me->id,'shown_user_id'=>$candidate->id,'pool_type'=>$pool,'shown_at'=>now()]);
   return view('discovery.users',compact('users','pool'));
  }
  public function follow(Request $request,string $pool): RedirectResponse {
   abort_unless(in_array($pool,['normal','supporter'],true),404);
   $data=$request->validate(['user_ids'=>['required','array','size:3'],'user_ids.*'=>['integer','distinct','exists:users,id']]); $me=$request->user();
-  $query=User::whereIn('id',$data['user_ids'])->where('status','active')->whereHas('activeChannelLink');
+  $query=User::whereIn('id',$data['user_ids'])->where('status','active')->where('id','<>',$me->id)->whereHas('activeChannelLink');
+  $query->whereNotIn('id',PlatformFollow::where('follower_user_id',$me->id)->select('followed_user_id'));
   if($pool==='supporter') $query->whereHas('supporterStatuses',fn($q)=>$q->where('status','active')->where('ends_at','>',now()));
   else $query->whereDoesntHave('supporterStatuses',fn($q)=>$q->where('status','active')->where('ends_at','>',now()));
-  abort_unless($query->where('id','<>',$me->id)->count()===3,422,'Seçimleriniz keşif havuzu kurallarına uymuyor.');
-  $today=PlatformFollow::where('follower_user_id',$me->id)->whereDate('created_at',today())->count();
-  abort_if($today+3>6,429,'Günlük 6 platform takip sınırına ulaştınız.');
-  DB::transaction(function() use($data,$me){ foreach($data['user_ids'] as $id) PlatformFollow::firstOrCreate(['follower_user_id'=>$me->id,'followed_user_id'=>$id],['created_at'=>now()]); });
+  abort_unless($query->count()===3,422,'Seçimleriniz keşif havuzu kurallarına uymuyor.');
+  $poolCount=PlatformFollow::where('follower_user_id',$me->id)->where('pool_type',$pool)->whereDate('created_at',today())->count();
+  $total=PlatformFollow::where('follower_user_id',$me->id)->whereDate('created_at',today())->count();
+  abort_if($poolCount+3>3 || $total+3>6,429,'Bu keşif havuzundaki günlük takip sınırına ulaştınız.');
+  DB::transaction(function() use($data,$me,$pool){foreach($data['user_ids'] as $id) PlatformFollow::firstOrCreate(['follower_user_id'=>$me->id,'followed_user_id'=>$id],['pool_type'=>$pool,'created_at'=>now()]);});
   return redirect()->route('discovery.users',$pool)->with('status','Platform takipleriniz kaydedildi.');
  }
- public function videos(): View {
-  $videos=Video::with('channel')->where('availability','available')->latest('published_at')->limit(10)->get();
-  return view('discovery.videos',compact('videos'));
+ public function videos(Request $request): View {
+  $selected=session('selected_video_ids');
+  $videos=is_array($selected)?Video::with('channel')->where('availability','available')->whereIn('id',$selected)->get():Video::with('channel')->where('availability','available')->latest('published_at')->limit(10)->get();
+  return view('discovery.videos',compact('videos','selected'));
  }
+ public function selectVideos(Request $request): RedirectResponse {
+  $data=$request->validate(['video_ids'=>['nullable','array','max:5'],'video_ids.*'=>['integer','distinct','exists:videos,id']]);
+  $ids=$data['video_ids']??[];
+  if($ids) abort_unless(Video::whereIn('id',$ids)->where('availability','available')->count()===count($ids),422);
+  session(['selected_video_ids'=>$ids]); return redirect()->route('discovery.videos');
+ }
+ public function resetVideoSelection(): RedirectResponse {session()->forget('selected_video_ids');return redirect()->route('discovery.videos');}
 }
