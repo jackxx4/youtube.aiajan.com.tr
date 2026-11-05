@@ -34,7 +34,9 @@ class GoogleAuthController extends Controller {
     $storedToken->save();
     session(['available_youtube_channels'=>$available->pluck('youtube_channel_id')->all()]); return $user;
    });
-   Auth::login($user,true); request()->session()->regenerate(); return redirect()->route('channels.select');
+   Auth::login($user,true); request()->session()->regenerate();
+   $active=$user->activeChannelLink()->first();
+   return $active && $active->started_at->gt(now()->subDays(30)) ? redirect()->route('dashboard') : redirect()->route('channels.select');
   } catch(Throwable $e) {report($e);return redirect()->route('login')->withErrors(['google'=>'Google girişi tamamlanamadı. OAuth ayarlarını ve YouTube kanal erişimini kontrol edin.']);}
  }
  public function logout(): RedirectResponse {Auth::logout();request()->session()->invalidate();request()->session()->regenerateToken();return redirect()->route('home');}
