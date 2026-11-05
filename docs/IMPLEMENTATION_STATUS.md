@@ -23,8 +23,13 @@
 - Günlük öneri algoritmasının üretim verisiyle iyileştirilmesi
 - Aylık metrik snapshot zamanlayıcısı
 - Yetkilendirme, rate limit, gizlilik ve hesap silme akışlarının tamamlanması
-- PHPUnit testleri, GitHub Actions CI çalıştırma sonucu, güvenlik taraması ve yük testleri
+- Güvenlik taraması ve yük testleri
 - Güncel YouTube API politika incelemesi
+
+## Otomatik test durumu
+- GitHub Actions üzerinde Composer doğrulaması başarılı.
+- Laravel Blade şablon derlemesi (view:cache) başarılı.
+- PHPUnit testleri başarılı.
 
 ## Yayına alma durumu
 GitHub kodu tek başına canlıya alınmış uygulama değildir. Plesk üzerinde bağımlılık kurulumu, çevre değişkenleri, veritabanı migration'ları, dosya izinleri ve Google OAuth bilgileri gereklidir. Bu işlemler hosting üzerinde henüz doğrulanmamıştır.
