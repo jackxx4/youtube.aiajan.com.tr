@@ -16,7 +16,7 @@ class SyncYouTubeChannels extends Command {
     $client->setAccessToken(['access_token'=>Crypt::decryptString($token->access_token_enc),'created'=>now()->timestamp,'expires_in'=>$expires]);
     if($client->isAccessTokenExpired() && $token->refresh_token_enc) {
      $fresh=$client->fetchAccessTokenWithRefreshToken(Crypt::decryptString($token->refresh_token_enc));
-     if(isset($fresh['access_token'])) {$token->access_token_enc=Crypt::encryptString($fresh['access_token']);if(!empty($fresh['refresh_token']))$token->refresh_token_enc=Crypt::encryptString($fresh['refresh_token']);$token->expires_at=now()->addSeconds((int)($fresh['expires_in']??3600));$token->save();}
+     if(isset($fresh['access_token'])) {$client->setAccessToken($fresh);$token->access_token_enc=Crypt::encryptString($fresh['access_token']);if(!empty($fresh['refresh_token']))$token->refresh_token_enc=Crypt::encryptString($fresh['refresh_token']);$token->expires_at=now()->addSeconds((int)($fresh['expires_in']??3600));$token->save();}
     }
     if($client->isAccessTokenExpired()) {$this->warn('Token yenilenemedi: '.$link->channel->youtube_channel_id);continue;}
     $yt=new YouTube($client);
