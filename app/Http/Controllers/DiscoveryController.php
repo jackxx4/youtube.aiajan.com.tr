@@ -11,7 +11,9 @@ class DiscoveryController extends Controller {
  public function users(Request $request,string $pool='normal'): View {
   abort_unless(in_array($pool,['normal','supporter'],true),404); $me=$request->user();
   $followed=PlatformFollow::where('follower_user_id',$me->id)->pluck('followed_user_id');
-  $base=User::where('status','active')->where('id','<>',$me->id)->whereNotIn('id',$followed)->whereHas('activeChannelLink');
+  $blockedByMe=DB::table('user_blocks')->where('blocker_user_id',$me->id)->pluck('blocked_user_id');
+  $blockedMe=DB::table('user_blocks')->where('blocked_user_id',$me->id)->pluck('blocker_user_id');
+  $base=User::where('status','active')->where('id','<>',$me->id)->whereNotIn('id',$followed)->whereNotIn('id',$blockedByMe)->whereNotIn('id',$blockedMe)->whereHas('activeChannelLink');
   if($pool==='supporter') $base->whereHas('supporterStatuses',fn($q)=>$q->where('status','active')->where('ends_at','>',now()));
   else $base->whereDoesntHave('supporterStatuses',fn($q)=>$q->where('status','active')->where('ends_at','>',now()));
   $seen=DB::table('user_impressions')->where('viewer_user_id',$me->id)->where('pool_type',$pool)->pluck('shown_user_id');
@@ -24,7 +26,9 @@ class DiscoveryController extends Controller {
  public function follow(Request $request,string $pool): RedirectResponse {
   abort_unless(in_array($pool,['normal','supporter'],true),404);
   $data=$request->validate(['user_ids'=>['required','array','size:3'],'user_ids.*'=>['integer','distinct','exists:users,id']]); $me=$request->user();
-  $query=User::whereIn('id',$data['user_ids'])->where('status','active')->where('id','<>',$me->id)->whereHas('activeChannelLink');
+  $blockedByMe=DB::table('user_blocks')->where('blocker_user_id',$me->id)->pluck('blocked_user_id');
+  $blockedMe=DB::table('user_blocks')->where('blocked_user_id',$me->id)->pluck('blocker_user_id');
+  $query=User::whereIn('id',$data['user_ids'])->where('status','active')->where('id','<>',$me->id)->whereNotIn('id',$blockedByMe)->whereNotIn('id',$blockedMe)->whereHas('activeChannelLink');
   $query->whereNotIn('id',PlatformFollow::where('follower_user_id',$me->id)->select('followed_user_id'));
   if($pool==='supporter') $query->whereHas('supporterStatuses',fn($q)=>$q->where('status','active')->where('ends_at','>',now()));
   else $query->whereDoesntHave('supporterStatuses',fn($q)=>$q->where('status','active')->where('ends_at','>',now()));
