@@ -7,8 +7,6 @@
 /public/hot
 /bootstrap/cache/*
 !/bootstrap/cache/.gitignore
-/storage/app/*
-!/storage/app/.gitignore
 /storage/app/private/*
 !/storage/app/private/.gitignore
 /storage/app/public/*
