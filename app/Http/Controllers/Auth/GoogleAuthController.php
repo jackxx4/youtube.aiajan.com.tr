@@ -23,8 +23,8 @@ class GoogleAuthController extends Controller {
    if($available->isEmpty()) return redirect()->route('login')->withErrors(['google'=>'Bu Google hesabında erişilebilir bir YouTube kanalı bulunamadı.']);
    $user=DB::transaction(function() use($google,$available) {
     $user=User::firstOrNew(['google_sub'=>$google->getId()]);
-    if(!$user->exists) $user->username=$this->uniqueUsername($google->getNickname() ?: $google->getName() ?: 'creator');
-    $user->name=$google->getName() ?: 'YouTube Kullanıcısı'; $user->email=$google->getEmail(); $user->avatar_url=$google->getAvatar(); $user->status='active'; $user->save();
+    if(!$user->exists) { $user->username=$this->uniqueUsername($google->getNickname() ?: $google->getName() ?: 'creator'); $user->status='active'; }
+    $user->name=$google->getName() ?: 'YouTube Kullanıcısı'; $user->email=$google->getEmail(); $user->avatar_url=$google->getAvatar(); $user->save();
     foreach($available as $data) YouTubeChannel::updateOrCreate(['youtube_channel_id'=>$data['youtube_channel_id']],collect($data)->except(['subscriber_count','view_count'])->all()+['last_synced_at'=>now()]);
     $storedToken=YouTubeOAuthToken::firstOrNew(['user_id'=>$user->id]);
     $storedToken->access_token_enc=Crypt::encryptString($google->token);
@@ -34,6 +34,7 @@ class GoogleAuthController extends Controller {
     $storedToken->save();
     session(['available_youtube_channels'=>$available->pluck('youtube_channel_id')->all()]); return $user;
    });
+   if($user->status!=='active') return redirect()->route('login')->withErrors(['google'=>'Bu platform hesabı şu anda kullanıma açık değil.']);
    Auth::login($user,true); request()->session()->regenerate();
    $active=$user->activeChannelLink()->first();
    return $active && $active->started_at->gt(now()->subDays(30)) ? redirect()->route('dashboard') : redirect()->route('channels.select');
