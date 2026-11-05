@@ -47,3 +47,22 @@
 - Üretim güvenlik / gizlilik / yük testleri ve YouTube politika incelemesi
 
 YouTube etkileşimi ödül veya avantaj şartına bağlanmaz. Video keşfi isteğe bağlıdır; oynatıcının standart kontrolleri korunur.
+
+## İlk yönetici hesabı
+İlk Google OAuth girişi ve kanal bağlantısı tamamlandıktan sonra, phpMyAdmin üzerinden yalnızca kendi hesabına yönetici rolü ver:
+
+~~~sql
+UPDATE users
+SET role = 'admin'
+WHERE email = 'GOOGLE_HESABININ_EPOSTA_ADRESI';
+~~~
+
+E-posta adresini kendi Google hesabınla değiştir. Bu sorguyu yalnızca güvenilir yönetici hesabı için çalıştır.
+
+## Scheduler
+Plesk Scheduled Tasks alanında dakikada bir şu komutu çalıştır:
+~~~bash
+php /TAM/YOL/youtube.aiajan.com.tr/artisan schedule:run
+~~~
+
+Kanal senkronizasyonu altı saatte bir; süresi dolan destekçi kayıtlarının kapatılması her gün çalışır.
