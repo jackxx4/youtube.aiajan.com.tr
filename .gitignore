@@ -2,7 +2,6 @@
 /.env
 .env.*
 !.env.example
-/config/app.php
 /storage/
 /logs/
 *.log
