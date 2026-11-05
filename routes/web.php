@@ -20,5 +20,7 @@ Route::middleware('auth')->group(function(){
  Route::get('/kesfet/kullanicilar/{pool}',[DiscoveryController::class,'users'])->name('discovery.users');
  Route::post('/kesfet/kullanicilar/{pool}/takip',[DiscoveryController::class,'follow'])->name('discovery.follow');
  Route::get('/kesfet/videolar',[DiscoveryController::class,'videos'])->name('discovery.videos');
+ Route::post('/kesfet/videolar/sec',[DiscoveryController::class,'selectVideos'])->name('discovery.videos.select');
+ Route::post('/kesfet/videolar/yeniden-sec',[DiscoveryController::class,'resetVideoSelection'])->name('discovery.videos.reset');
  Route::prefix('yonetim')->name('admin.')->middleware('admin')->group(function(){Route::get('/',AdminDashboardController::class)->name('dashboard');});
 });
