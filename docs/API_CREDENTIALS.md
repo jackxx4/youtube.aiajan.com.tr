@@ -11,8 +11,8 @@
 | `GOOGLE_CLIENT_ID` | Google ile giriş OAuth istemcisi | Google Cloud Console |
 | `GOOGLE_CLIENT_SECRET` | OAuth istemci sırrı | Google Cloud Console |
 | `YOUTUBE_API_KEY` | YouTube Data API v3 genel API erişimi | Google Cloud Console |
-| `DB_NAME` | MySQL veritabanı adı | Hosting kontrol paneli |
-| `DB_USER` | MySQL kullanıcı adı | Hosting kontrol paneli |
+| `DB_DATABASE` | MySQL veritabanı adı | Hosting kontrol paneli |
+| `DB_USERNAME` | MySQL kullanıcı adı | Hosting kontrol paneli |
 | `DB_PASSWORD` | MySQL parolası | Hosting kontrol paneli |
 | `APP_KEY (Laravel)` | OAuth tokenlarını sunucuda şifrelemek için anahtar | Laravel artisan key:generate ile sunucuda üretilecek |
 | `CONTRIBUTION_PROVIDER` | Katkı/ödeme sağlayıcısı adı | Sağlayıcı seçilince |
@@ -36,9 +36,8 @@ OAuth kapsamları kullanım amacına göre en az yetki ilkesiyle seçilmelidir. 
 
 - Gerçek değerleri bu depodaki `.env.example` dosyasına yazmayın.
 - `.env` dosyasını Git'e eklemeyin.
-- Gerçek `config/app.php` dosyası Git tarafından izlenmemelidir.
 - API key için mümkün olan API ve uygulama kısıtlarını etkinleştirin.
-- OAuth Client Secret, refresh token ve token şifreleme anahtarını tarayıcıya göndermeyin.
+- OAuth Client Secret, refresh token ve token şifreleme anahtarını tarayıcıya göndermeyin. Laravel uygulamasında bu anahtar APP_KEY değeridir.
 - Bir anahtar yanlışlıkla GitHub'a gönderilirse yalnızca dosyadan silmek yeterli değildir; sağlayıcı panelinden iptal edip yenisini üretin.
 - Ödeme sağlayıcısı seçilmeden ödeme API alanları doldurulmaz.
 
