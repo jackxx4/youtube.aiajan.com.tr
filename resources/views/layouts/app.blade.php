@@ -65,11 +65,11 @@
             <a href="{{ route('discovery.users', 'supporter') }}">Destekçiler</a>
             <a href="{{ route('discovery.videos') }}">Video Keşfi</a>
             <a href="{{ route('profile.me') }}">Profilim</a>
-            @auth
+            @if(auth()->check())
                 @if(auth()->user()->role === 'admin')
                     <a href="{{ route('admin.dashboard') }}">Yönetim</a>
                 @endif
-            @endauth
+            @endif
         </nav>
         <div class="sidefoot">Daha iyi keşif, gerçek topluluk.<br>© {{ date('Y') }} AIAjan</div>
     </aside>
