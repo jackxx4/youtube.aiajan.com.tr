@@ -1,7 +1,7 @@
 # YouTube Keşif — Laravel teknik şartname
 
 ## Mimari
-- Laravel 12, PHP 8.3+, MySQL 8+
+- Laravel 13, PHP 8.3+, MySQL 8+
 - Blade tabanlı, mobil uyumlu sıcak/vintage arayüz
 - Google OAuth: Laravel Socialite
 - YouTube Data API: Google API PHP Client
