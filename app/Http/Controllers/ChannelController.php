@@ -162,6 +162,13 @@ class ChannelController extends Controller
 
                 if ($channel) {
                     $this->syncInitialVideos($channel);
+
+                    // Kullanıcının kayıtlı kanal listesine ekle
+                    $currentIds = (array) ($user->google_channel_ids ?? []);
+                    if (!in_array($channel->youtube_channel_id, $currentIds, true)) {
+                        $currentIds[] = $channel->youtube_channel_id;
+                        $user->update(['google_channel_ids' => $currentIds]);
+                    }
                 }
             } catch (\DomainException $e) {
                 return back()->withErrors(['channel_input' => $e->getMessage()])->withInput();

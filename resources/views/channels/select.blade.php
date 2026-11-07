@@ -112,8 +112,8 @@
 
     const firebaseConfig = {
         apiKey: "{{ config('services.firebase.api_key') }}",
-        authDomain: "{{ config('services.firebase.auth_domain', config('services.firebase.project_id', 'aiajan-youtube') . '.firebaseapp.com') }}",
-        projectId: "{{ config('services.firebase.project_id', 'aiajan-youtube') }}"
+        authDomain: "{{ config('services.firebase.auth_domain', config('services.firebase.project_id', 'aiajan-portfolio') . '.firebaseapp.com') }}",
+        projectId: "{{ config('services.firebase.project_id', 'aiajan-portfolio') }}"
     };
 
     const app = initializeApp(firebaseConfig);
