@@ -112,21 +112,44 @@
                             </div>
                         </td>
                         <td style="color:var(--text-main);font-family:'JetBrains Mono',monospace;font-size:12px;max-width:220px;word-break:break-all;">
-                            {{ $u->email }}
+                            @if(str_ends_with((string) $u->email, '@pages.plusgoogle.com'))
+                                <div style="display:flex;flex-direction:column;gap:3px;">
+                                    <span class="badge badge-info" style="width:fit-content;font-size:10px;">Marka Kanal Hesabı</span>
+                                    <span style="color:var(--text-muted);font-size:11px;">{{ '@' . $u->username }}</span>
+                                </div>
+                            @else
+                                {{ $u->email }}
+                            @endif
                         </td>
                         <td>
-                            @if($u->activeChannelLink?->channel)
-                                <div style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                                    <a href="https://www.youtube.com/{{ $u->activeChannelLink->channel->custom_url ? ltrim($u->activeChannelLink->channel->custom_url, '/') : 'channel/' . $u->activeChannelLink->channel->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-rust);font-weight:600;text-decoration:underline;">
-                                        📺 {{ Str::limit($u->activeChannelLink->channel->title, 20) }}
-                                    </a>
-                                    <form method="POST" action="{{ route('admin.channels.destroy', $u->activeChannelLink->channel->id) }}" style="display:inline;" onsubmit="return confirm('“{{ addslashes($u->activeChannelLink->channel->title) }}” kanalını ve tüm videolarını silmek istediğinize emin misiniz?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn-admin btn-admin-danger" style="padding:2px 7px;font-size:10px;" title="Kanalı Sil">
-                                            🗑️ Sil
-                                        </button>
-                                    </form>
+                            @php
+                                $userChannels = $u->channelLinks
+                                    ? $u->channelLinks->pluck('channel')->filter()->unique('id')->values()
+                                    : collect();
+                                if ($userChannels->isEmpty() && $u->activeChannelLink?->channel) {
+                                    $userChannels = collect([$u->activeChannelLink->channel]);
+                                }
+                                $activeChId = $u->activeChannelLink?->youtube_channel_id;
+                            @endphp
+                            @if($userChannels->isNotEmpty())
+                                <div style="display:flex;flex-direction:column;gap:6px;">
+                                    @foreach($userChannels as $ch)
+                                        <div style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                            <a href="https://www.youtube.com/{{ $ch->custom_url ? ltrim($ch->custom_url, '/') : 'channel/' . $ch->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" style="color:{{ $ch->id === $activeChId ? 'var(--accent-rust)' : '#e2d9d0' }};font-weight:600;text-decoration:underline;font-size:12px;">
+                                                📺 {{ Str::limit($ch->title, 22) }}
+                                            </a>
+                                            @if($ch->id === $activeChId)
+                                                <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(34,197,94,0.15);color:#4ade80;font-weight:600;">Aktif</span>
+                                            @endif
+                                            <form method="POST" action="{{ route('admin.channels.destroy', $ch->id) }}" style="display:inline;" onsubmit="return confirm('“{{ addslashes($ch->title) }}” kanalını ve tüm videolarını silmek istediğinize emin misiniz?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-admin btn-admin-danger" style="padding:2px 6px;font-size:10px;" title="Kanalı Sil">
+                                                    🗑️
+                                                </button>
+                                            </form>
+                                        </div>
+                                    @endforeach
                                 </div>
                             @else
                                 <span style="color:var(--text-dim);">—</span>

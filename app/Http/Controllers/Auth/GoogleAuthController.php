@@ -23,31 +23,11 @@ use Throwable;
 class GoogleAuthController extends Controller
 {
     /**
-     * Resmi Google OAuth 2.0 Yönlendirmesi (Saf PHP / Harici Kütüphane Bağımsız)
+     * Google Giriş Yönlendirmesi (Firebase OAuth Köprüsü üzerinden otomatik başlatır)
      */
     public function redirect(YouTubeChannelService $channels): RedirectResponse
     {
-        $clientId = config('services.google.client_id');
-        $redirectUri = config('services.google.redirect');
-
-        if (empty($clientId) || $clientId === 'BURAYA_YAZILACAK') {
-            return redirect()->route('login')->withErrors(['google' => 'Google OAuth istemci bilgileri yapılandırılmadı.']);
-        }
-
-        $state = Str::random(40);
-        session(['google_oauth_state' => $state]);
-
-        $query = http_build_query([
-            'client_id'     => $clientId,
-            'redirect_uri'  => $redirectUri,
-            'response_type' => 'code',
-            'scope'         => 'openid email profile https://www.googleapis.com/auth/youtube.readonly',
-            'access_type'   => 'offline',
-            'prompt'        => 'consent select_account',
-            'state'         => $state,
-        ]);
-
-        return redirect('https://accounts.google.com/o/oauth2/v2/auth?' . $query);
+        return redirect()->route('login', ['auto' => 'google']);
     }
 
     /**
@@ -216,6 +196,7 @@ class GoogleAuthController extends Controller
         $email = $firebaseUser['email'];
         $name = $firebaseUser['name'] ?: ($firebaseUser['email'] ? explode('@', $firebaseUser['email'])[0] : 'YouTube Üreticisi');
         $avatar = $firebaseUser['photo'] ?? null;
+        $isBrandAccount = str_ends_with($email, '@pages.plusgoogle.com');
 
         $available = collect();
         if ($accessToken) {
@@ -226,33 +207,74 @@ class GoogleAuthController extends Controller
             }
         }
 
+        // Eğer youtube.readonly izni olmadan giriş yapıldıysa (veya Marka Hesabı seçildiyse),
+        // profil adı / marka hesabı kimliği üzerinden YouTube kanalını otomatik keşfet!
+        if ($available->isEmpty()) {
+            try {
+                $resolved = $channels->resolveBestChannelByName($name, $email, $avatar);
+                if ($resolved && !empty($resolved['youtube_channel_id'])) {
+                    $available = collect([$resolved]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Otomatik kanal keşfi hatası: ' . $e->getMessage());
+            }
+        }
+
         try {
-            $user = DB::transaction(function () use ($googleSub, $name, $email, $avatar, $accessToken) {
-                $user = User::firstOrNew(['google_sub' => $googleSub]);
-                if ($user->exists && $user->status !== 'active') {
+            // MANTIKSAL KORUMA 1:
+            // Eğer kullanıcı zaten giriş yapmışsa (veya sistemde gerçek mail hesabı varsa) ve seçilen hesap
+            // bir Google Marka Hesabı (@pages.plusgoogle.com — yani YouTube Kanalı) ise:
+            // ASLA yeni bir Üye (User) oluşturma! Bu kanalı mevcut ana üyeye bağla!
+            $currentAuthUser = Auth::user();
+            if ($isBrandAccount && !$currentAuthUser) {
+                // Oturum açık değilse bile veritabanında gerçek e-postalı (@pages.plusgoogle.com olmayan) ana üye var mı kontrol et
+                $primaryUser = User::where('email', 'not like', '%@pages.plusgoogle.com')
+                    ->where('status', 'active')
+                    ->latest('id')
+                    ->first();
+                if ($primaryUser) {
+                    $currentAuthUser = $primaryUser;
+                }
+            }
+
+            if ($isBrandAccount && $currentAuthUser) {
+                $user = $currentAuthUser;
+            } else {
+                $user = DB::transaction(function () use ($googleSub, $name, $email, $avatar, $accessToken) {
+                    $user = User::firstOrNew(['google_sub' => $googleSub]);
+                    if ($user->exists && $user->status !== 'active') {
+                        return $user;
+                    }
+                    if (!$user->exists) {
+                        $user->username = $this->uniqueUsername($name);
+                        $user->status = 'active';
+                    }
+                    $user->name = $name;
+                    $user->email = $email;
+                    if ($avatar) {
+                        $user->avatar_url = $avatar;
+                    }
+                    $user->save();
+
+                    if ($accessToken) {
+                        $storedToken = YouTubeOAuthToken::firstOrNew(['user_id' => $user->id]);
+                        $storedToken->access_token_enc = Crypt::encryptString($accessToken);
+                        $storedToken->scopes = 'openid email profile';
+                        $storedToken->expires_at = now()->addHour();
+                        $storedToken->save();
+                    }
+
                     return $user;
-                }
-                if (!$user->exists) {
-                    $user->username = $this->uniqueUsername($name);
-                    $user->status = 'active';
-                }
-                $user->name = $name;
-                $user->email = $email;
-                if ($avatar) {
-                    $user->avatar_url = $avatar;
-                }
-                $user->save();
+                });
 
-                if ($accessToken) {
-                    $storedToken = YouTubeOAuthToken::firstOrNew(['user_id' => $user->id]);
-                    $storedToken->access_token_enc = Crypt::encryptString($accessToken);
-                    $storedToken->scopes = 'openid email profile https://www.googleapis.com/auth/youtube.readonly';
-                    $storedToken->expires_at = now()->addHour();
-                    $storedToken->save();
+                // MANTIKSAL KORUMA 2:
+                // Kullanıcı gerçek e-posta hesabıyla (@gmail.com vb.) giriş yaptıysa,
+                // daha önce yanlışlıkla Marka Hesabı (@pages.plusgoogle.com) olarak açılmış sözde üyelerin kanallarını
+                // bu gerçek ana üyenin altına birleştir ve sahte @pages.plusgoogle.com üye kayıtlarını temizle!
+                if (!$isBrandAccount) {
+                    $this->mergeBrandAccountUsersInto($user, $channels);
                 }
-
-                return $user;
-            });
+            }
 
             if ($user->status !== 'active') {
                 return response()->json(['success' => false, 'message' => 'Bu hesap şu anda kullanıma kapalı.'], 403);
@@ -413,6 +435,72 @@ class GoogleAuthController extends Controller
         request()->session()->invalidate();
         request()->session()->regenerateToken();
         return redirect()->route('home');
+    }
+
+    /**
+     * Yanlışlıkla @pages.plusgoogle.com (Marka Hesabı / YouTube Kanalı) olarak açılmış sözde üye kayıtlarını
+     * gerçek ana Google üyesinin (ör. @gmail.com) altına kanal olarak birleştirir ve sahte üye satırını siler.
+     */
+    private function mergeBrandAccountUsersInto(User $primaryUser, YouTubeChannelService $channelsService): void
+    {
+        $brandUsers = User::where('email', 'like', '%@pages.plusgoogle.com')
+            ->where('id', '<>', $primaryUser->id)
+            ->get();
+
+        if ($brandUsers->isEmpty()) {
+            return;
+        }
+
+        $mergedGoogleIds = (array) ($primaryUser->google_channel_ids ?? []);
+
+        foreach ($brandUsers as $brandUser) {
+            try {
+                // 1. Eğer bu marka hesabının kanalı henüz çözülmemişse, adından YouTube kanalını bul ve oluştur
+                $resolved = $channelsService->resolveBestChannelByName($brandUser->name, $brandUser->email, $brandUser->avatar_url);
+                if ($resolved && !empty($resolved['youtube_channel_id'])) {
+                    $ch = YouTubeChannel::updateOrCreate(
+                        ['youtube_channel_id' => $resolved['youtube_channel_id']],
+                        collect($resolved)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
+                    );
+                    $mergedGoogleIds[] = $ch->youtube_channel_id;
+                    try {
+                        $channelsService->syncChannelVideos($ch);
+                    } catch (\Throwable) {}
+
+                    if (!UserChannelLink::where('user_id', $primaryUser->id)->where('youtube_channel_id', $ch->id)->exists()) {
+                        $hasActive = $primaryUser->activeChannelLink()->exists();
+                        UserChannelLink::create([
+                            'user_id'            => $primaryUser->id,
+                            'youtube_channel_id' => $ch->id,
+                            'started_at'         => now(),
+                            'ended_at'           => $hasActive ? now() : null,
+                        ]);
+                    }
+                }
+
+                // 2. Marka hesabına bağlı diğer kanal linklerini ve vitrin seçimlerini ana üyeye aktar
+                foreach ((array) ($brandUser->google_channel_ids ?? []) as $gid) {
+                    $mergedGoogleIds[] = $gid;
+                }
+
+                UserChannelLink::where('user_id', $brandUser->id)->update([
+                    'user_id'  => $primaryUser->id,
+                    'ended_at' => now(),
+                ]);
+
+                UserVideoSelection::where('user_id', $brandUser->id)->update([
+                    'user_id' => $primaryUser->id,
+                ]);
+
+                DB::table('youtube_oauth_tokens')->where('user_id', $brandUser->id)->delete();
+                $brandUser->delete();
+            } catch (\Throwable $e) {
+                Log::warning('Marka hesabı birleştirme hatası: ' . $e->getMessage());
+            }
+        }
+
+        $mergedGoogleIds = array_values(array_unique(array_filter($mergedGoogleIds)));
+        $primaryUser->update(['google_channel_ids' => $mergedGoogleIds]);
     }
 
     private function uniqueUsername(string $name): string

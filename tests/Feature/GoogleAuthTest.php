@@ -18,16 +18,55 @@ class GoogleAuthTest extends TestCase
 
     public function test_google_redirect_returns_valid_oauth_url(): void
     {
-        config(['services.google.client_id' => 'test-client-id.apps.googleusercontent.com']);
-        config(['services.google.redirect' => 'https://youtube.aiajan.com.tr/auth/google/callback']);
-
         $response = $this->get(route('auth.google'));
 
         $response->assertStatus(302);
-        $location = $response->headers->get('Location');
-        $this->assertStringContainsString('https://accounts.google.com/o/oauth2/v2/auth', $location);
-        $this->assertStringContainsString('client_id=test-client-id.apps.googleusercontent.com', $location);
-        $this->assertStringContainsString('youtube.readonly', $location);
+        $response->assertRedirect(route('login', ['auto' => 'google']));
+    }
+
+    public function test_brand_account_login_attaches_channel_to_existing_primary_user_without_creating_new_member(): void
+    {
+        $primaryUser = User::create([
+            'name'       => 'Ana Hesap Sahibi',
+            'email'      => 'owner@gmail.com',
+            'username'   => 'owner',
+            'google_sub' => 'sub_owner_1',
+            'status'     => 'active',
+        ]);
+
+        $mockChannelsService = Mockery::mock(YouTubeChannelService::class);
+        $mockChannelsService->shouldReceive('listMine')->andReturn(collect());
+        $mockChannelsService->shouldReceive('resolveBestChannelByName')->andReturn([
+            'youtube_channel_id' => 'UCBipy0BTvp0GxJeJu6oV1kA',
+            'title'              => 'arabamsarj',
+            'custom_url'         => '@arabamsarjcomtr',
+            'thumbnail_url'      => 'https://yt3.ggpht.com/avatar.jpg',
+        ]);
+        $mockChannelsService->shouldReceive('syncChannelVideos')->andReturn(10);
+        $this->app->instance(YouTubeChannelService::class, $mockChannelsService);
+
+        $controller = $this->getMockBuilder(\App\Http\Controllers\Auth\GoogleAuthController::class)
+            ->onlyMethods(['verifyFirebaseToken'])
+            ->getMock();
+
+        $controller->method('verifyFirebaseToken')->willReturn([
+            'uid'   => 'brand_sub_999',
+            'email' => 'arabamsarj-6763444074819352298@pages.plusgoogle.com',
+            'name'  => 'arabamsarj',
+            'photo' => 'https://yt3.ggpht.com/avatar.jpg',
+        ]);
+        $this->app->instance(\App\Http\Controllers\Auth\GoogleAuthController::class, $controller);
+
+        $response = $this->postJson(route('auth.firebase.callback'), [
+            'idToken'     => 'mock_brand_id_token',
+            'accessToken' => '',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertEquals(1, User::count(), 'Marka hesabı (@pages.plusgoogle.com) ayrı bir üye olarak kaydedilmemeli!');
+        $this->assertEquals($primaryUser->id, auth()->id());
+        $this->assertNotNull($primaryUser->fresh()->activeChannelLink);
+        $this->assertEquals('UCBipy0BTvp0GxJeJu6oV1kA', $primaryUser->fresh()->activeChannelLink->channel->youtube_channel_id);
     }
 
     public function test_firebase_login_with_multiple_channels_imports_all_channels_and_redirects_to_selection(): void

@@ -27,7 +27,7 @@ class ChannelController extends Controller
         $linkedIds = $user->channelLinks()->with('channel')->get()->pluck('channel.youtube_channel_id')->filter()->all();
         $ids = array_values(array_unique(array_filter(array_merge($sessionIds, $storedIds, $linkedIds))));
 
-        // 2. Eğer kayıtlı liste yoksa kullanıcının OAuth token'ı üzerinden kanalları çekmeyi dene
+        // 2. Eğer kayıtlı liste yoksa kullanıcının OAuth token'ı veya profil adı üzerinden kanalları çekmeyi dene
         if (empty($ids)) {
             $token = $user->oauthToken;
             if ($token && $token->access_token_enc) {
@@ -40,16 +40,47 @@ class ChannelController extends Controller
                         session(['available_youtube_channels' => $ids]);
                         foreach ($fetched as $data) {
                             $item = (array) $data;
-                            YouTubeChannel::updateOrCreate(
+                            $ch = YouTubeChannel::updateOrCreate(
                                 ['youtube_channel_id' => $item['youtube_channel_id']],
                                 collect($item)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
                             );
+                            try {
+                                $channelsService->syncChannelVideos($ch);
+                            } catch (\Throwable) {}
                         }
                         $user->update(['google_channel_ids' => $ids]);
                     }
                 } catch (\Throwable $e) {
                     report($e);
                 }
+            }
+
+            // Hala kanal yoksa profil / marka hesabı adından otomatik keşfet
+            if (empty($ids)) {
+                try {
+                    $resolved = $channelsService->resolveBestChannelByName($user->name, $user->email, $user->avatar_url);
+                    if ($resolved && !empty($resolved['youtube_channel_id'])) {
+                        $ch = YouTubeChannel::updateOrCreate(
+                            ['youtube_channel_id' => $resolved['youtube_channel_id']],
+                            collect($resolved)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
+                        );
+                        try {
+                            $channelsService->syncChannelVideos($ch);
+                        } catch (\Throwable) {}
+
+                        $ids = [$ch->youtube_channel_id];
+                        $user->update(['google_channel_ids' => $ids]);
+
+                        if (!$active) {
+                            $active = UserChannelLink::create([
+                                'user_id'            => $user->id,
+                                'youtube_channel_id' => $ch->id,
+                                'started_at'         => now(),
+                            ]);
+                            $active->load('channel');
+                        }
+                    }
+                } catch (\Throwable) {}
             }
         }
 
@@ -72,50 +103,97 @@ class ChannelController extends Controller
     }
 
     /**
-     * Google OAuth penceresinden gelen erişim belirteci ile kullanıcının YouTube kanallarını çeker.
+     * Google OAuth penceresinden gelen erişim belirteci veya seçilen Marka Hesabı / profil adı ile
+     * kullanıcının YouTube kanallarını çeker ve mevcut üyeye (yeni üye açmadan!) bağlar.
      */
     public function syncGoogleChannels(Request $request, YouTubeChannelService $channelsService): JsonResponse
     {
-        $accessToken = (string) $request->input('accessToken');
-        if (empty($accessToken)) {
-            return response()->json(['success' => false, 'message' => 'Yetkilendirme belirteci bulunamadı.'], 422);
-        }
+        $accessToken = (string) $request->input('accessToken', '');
+        $displayName = trim((string) $request->input('displayName', ''));
+        $email = trim((string) $request->input('email', ''));
+        $photoUrl = trim((string) $request->input('photoUrl', ''));
 
         try {
-            $fetched = $channelsService->listMine($accessToken);
+            $fetched = collect();
+            if (!empty($accessToken)) {
+                $fetched = $channelsService->listMine($accessToken);
+            }
+
+            // Eğer hassas youtube.readonly izni olmadan hesap/marka hesabı seçildiyse,
+            // seçilen hesabın adı veya @pages.plusgoogle.com kimliği üzerinden kanalı bul!
+            if ($fetched->isEmpty() && ($displayName !== '' || $email !== '')) {
+                $resolved = $channelsService->resolveBestChannelByName($displayName, $email, $photoUrl ?: null);
+                if ($resolved && !empty($resolved['youtube_channel_id'])) {
+                    $fetched = collect([$resolved]);
+                }
+            }
 
             if ($fetched->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Bu Google hesabına bağlı herhangi bir YouTube kanalı bulunamadı veya yetki verilmedi.'
+                    'message' => 'Seçilen Google hesabına ait açık bir YouTube kanalı tespit edilemedi. Sağdaki kutuya @kanaladi yazarak doğrudan ekleyebilirsiniz.'
                 ]);
             }
 
+            $user = $request->user();
             $newIds = [];
+            $firstChannel = null;
+
             foreach ($fetched as $data) {
                 $ch = YouTubeChannel::updateOrCreate(
                     ['youtube_channel_id' => $data['youtube_channel_id']],
                     collect($data)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
                 );
                 $newIds[] = $data['youtube_channel_id'];
+                if (!$firstChannel) {
+                    $firstChannel = $ch;
+                }
 
                 try {
                     $channelsService->syncChannelVideos($ch);
                 } catch (\Throwable) {}
             }
 
-            $currentIds = (array) ($request->user()->google_channel_ids ?? []);
+            $currentIds = (array) ($user->google_channel_ids ?? []);
             $mergedIds = array_values(array_unique(array_filter(array_merge($currentIds, $newIds))));
 
             session(['available_youtube_channels' => $mergedIds]);
-            $request->user()->update(['google_channel_ids' => $mergedIds]);
+            $user->update(['google_channel_ids' => $mergedIds]);
+
+            // Kullanıcının aktif kanalı yoksa ilk kanalı aktif yap
+            if (!$user->activeChannelLink()->exists() && $firstChannel) {
+                if (!UserChannelLink::where('youtube_channel_id', $firstChannel->id)->whereNull('ended_at')->where('user_id', '<>', $user->id)->exists()) {
+                    UserChannelLink::create([
+                        'user_id'            => $user->id,
+                        'youtube_channel_id' => $firstChannel->id,
+                        'started_at'         => now(),
+                    ]);
+                }
+            }
+
+            // Diğer tüm kanalları da kullanıcıya bağla
+            foreach ($newIds as $ytId) {
+                $ch = YouTubeChannel::where('youtube_channel_id', $ytId)->first();
+                if ($ch && !UserChannelLink::where('user_id', $user->id)->where('youtube_channel_id', $ch->id)->exists()) {
+                    UserChannelLink::create([
+                        'user_id'            => $user->id,
+                        'youtube_channel_id' => $ch->id,
+                        'started_at'         => now(),
+                        'ended_at'           => now(),
+                    ]);
+                }
+            }
 
             $allChannels = YouTubeChannel::whereIn('youtube_channel_id', $mergedIds)->orderBy('title')->get();
+            $addedTitle = $firstChannel ? "“{$firstChannel->title}”" : count($newIds) . ' kanal';
+
+            session()->flash('status', "{$addedTitle} ve son videoları hesabınıza başarıyla eklendi! Aşağıdan yönetmek istediğiniz kanalı seçebilirsiniz.");
 
             return response()->json([
-                'success' => true,
+                'success'  => true,
+                'reload'   => true,
                 'channels' => $allChannels->values(),
-                'message' => count($allChannels) . ' YouTube kanalı başarıyla listelendi!'
+                'message'  => "{$addedTitle} ve son videoları başarıyla hesabınıza eklendi!"
             ]);
         } catch (\Throwable $e) {
             report($e);
@@ -128,64 +206,88 @@ class ChannelController extends Controller
         $user = $request->user();
         $active = $user->activeChannelLink()->first();
 
-        // 1. Yöntem: Kanal bağlantısı veya kullanıcı adı (@kullaniciadi) girilmişse
+        // 1. Yöntem: Kanal bağlantısı veya kullanıcı adı (@kullaniciadi — tekli veya virgül/satır ile çoklu) girilmişse
         if ($request->filled('channel_input')) {
             $input = trim((string) $request->input('channel_input'));
-            $resolved = $this->resolveYouTubeChannel($input);
+            $rawInputs = array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', $input))));
 
-            if (!$resolved || empty($resolved['channel_id'])) {
+            $resolvedList = [];
+            foreach ($rawInputs as $singleInput) {
+                $res = $this->resolveYouTubeChannel($singleInput);
+                if ($res && !empty($res['channel_id'])) {
+                    $resolvedList[] = $res;
+                }
+            }
+
+            if (empty($resolvedList)) {
                 return back()->withErrors([
                     'channel_input' => 'YouTube kanalı tespit edilemedi. Lütfen geçerli bir kanal kullanıcı adı (@kanaladi) veya linki girin.'
                 ])->withInput();
             }
 
             try {
-                $channel = null;
-                DB::transaction(function () use ($user, $active, $resolved, &$channel) {
-                    $channel = YouTubeChannel::updateOrCreate(
-                        ['youtube_channel_id' => $resolved['channel_id']],
-                        [
-                            'title' => $resolved['title'] ?: ($user->name . ' YouTube Kanalı'),
-                            'thumbnail_url' => $resolved['thumbnail_url'] ?: $user->avatar_url,
-                            'custom_url' => $resolved['custom_url'] ?? null,
-                            'last_synced_at' => now(),
-                        ]
-                    );
+                $importedChannels = [];
+                $firstChannel = null;
 
-                    // Başka bir aktif kullanıcıya bağlı mı?
-                    if (UserChannelLink::where('youtube_channel_id', $channel->id)->whereNull('ended_at')->where('user_id', '<>', $user->id)->exists()) {
-                        throw new \DomainException('Bu YouTube kanalı halihazırda başka bir platform üyesine bağlı.');
+                DB::transaction(function () use ($user, $active, $resolvedList, &$importedChannels, &$firstChannel) {
+                    foreach ($resolvedList as $idx => $resolved) {
+                        $ch = YouTubeChannel::updateOrCreate(
+                            ['youtube_channel_id' => $resolved['channel_id']],
+                            [
+                                'title'          => $resolved['title'] ?: ($user->name . ' YouTube Kanalı'),
+                                'thumbnail_url'  => $resolved['thumbnail_url'] ?: $user->avatar_url,
+                                'custom_url'     => $resolved['custom_url'] ?? null,
+                                'last_synced_at' => now(),
+                            ]
+                        );
+
+                        // Başka bir aktif kullanıcıya bağlı mı?
+                        if (UserChannelLink::where('youtube_channel_id', $ch->id)->whereNull('ended_at')->where('user_id', '<>', $user->id)->exists()) {
+                            throw new \DomainException("“{$ch->title}” kanalı halihazırda başka bir platform üyesine bağlı.");
+                        }
+
+                        $importedChannels[] = $ch;
+                        if ($idx === 0) {
+                            $firstChannel = $ch;
+                        }
                     }
 
-                    // Zaten bu kanala bağlı ise değişiklik gerekmez
-                    if ($active && $active->youtube_channel_id === $channel->id) {
-                        return;
+                    if ($firstChannel) {
+                        if (!$active || $active->youtube_channel_id !== $firstChannel->id) {
+                            UserChannelLink::where('user_id', $user->id)->whereNull('ended_at')->update(['ended_at' => now()]);
+                            UserChannelLink::create([
+                                'user_id'            => $user->id,
+                                'youtube_channel_id' => $firstChannel->id,
+                                'started_at'         => now(),
+                            ]);
+                        }
                     }
 
-                    // Önceki tüm aktif bağları kapat (ancak diğer kanallara ait vitrin seçimlerini SAKLA)
-                    UserChannelLink::where('user_id', $user->id)->whereNull('ended_at')->update(['ended_at' => now()]);
-
-                    UserChannelLink::create([
-                        'user_id' => $user->id,
-                        'youtube_channel_id' => $channel->id,
-                        'started_at' => now()
-                    ]);
+                    foreach ($importedChannels as $ch) {
+                        if (!UserChannelLink::where('user_id', $user->id)->where('youtube_channel_id', $ch->id)->exists()) {
+                            UserChannelLink::create([
+                                'user_id'            => $user->id,
+                                'youtube_channel_id' => $ch->id,
+                                'started_at'         => now(),
+                                'ended_at'           => now(),
+                            ]);
+                        }
+                    }
                 });
 
-                if ($channel) {
+                $currentIds = (array) ($user->google_channel_ids ?? []);
+                foreach ($importedChannels as $ch) {
                     try {
-                        $channelsService->syncChannelVideos($channel);
+                        $channelsService->syncChannelVideos($ch);
                     } catch (\Throwable $syncEx) {
                         \Log::warning('syncChannelVideos atlandı: ' . $syncEx->getMessage());
                     }
 
-                    // Kullanıcının kayıtlı kanal listesine ekle
-                    $currentIds = (array) ($user->google_channel_ids ?? []);
-                    if (!in_array($channel->youtube_channel_id, $currentIds, true)) {
-                        $currentIds[] = $channel->youtube_channel_id;
-                        $user->update(['google_channel_ids' => $currentIds]);
+                    if (!in_array($ch->youtube_channel_id, $currentIds, true)) {
+                        $currentIds[] = $ch->youtube_channel_id;
                     }
                 }
+                $user->update(['google_channel_ids' => array_values(array_unique($currentIds))]);
             } catch (\DomainException $e) {
                 return back()->withErrors(['channel_input' => $e->getMessage()])->withInput();
             } catch (\Throwable $e) {
@@ -195,6 +297,11 @@ class ChannelController extends Controller
 
             session()->forget('available_youtube_channels');
 
+            if (count($importedChannels) > 1) {
+                return redirect()->route('channels.select')->with('status', count($importedChannels) . ' YouTube kanalınız ve son videoları başarıyla sisteme çekildi! Şimdi yönetmek istediğiniz kanalı seçip vitrin videolarını belirleyebilirsiniz.');
+            }
+
+            $channel = $firstChannel;
             $channelVideoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
             $showcaseCount = UserVideoSelection::where('user_id', $user->id)
                 ->where(function ($q) use ($channel, $channelVideoIds) {
@@ -385,7 +492,7 @@ class ChannelController extends Controller
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         if (!$html || $httpCode >= 400) {
-            return null;
+            return $this->fallbackSearchChannel($input);
         }
 
         preg_match('/<meta property="og:title" content="([^"]+)"/', $html, $mTitle);
@@ -412,7 +519,7 @@ class ChannelController extends Controller
         }
 
         if (!$channelId) {
-            return null;
+            return $this->fallbackSearchChannel($input);
         }
 
         return [
@@ -421,5 +528,21 @@ class ChannelController extends Controller
             'thumbnail_url' => $thumbnailUrl,
             'custom_url' => $customUrl,
         ];
+    }
+
+    private function fallbackSearchChannel(string $input): ?array
+    {
+        try {
+            $found = app(YouTubeChannelService::class)->resolveBestChannelByName($input);
+            if ($found && !empty($found['youtube_channel_id'])) {
+                return [
+                    'channel_id'    => $found['youtube_channel_id'],
+                    'title'         => $found['title'] ?? 'YouTube Kanalı',
+                    'thumbnail_url' => $found['thumbnail_url'] ?? null,
+                    'custom_url'    => $found['custom_url'] ?? null,
+                ];
+            }
+        } catch (\Throwable) {}
+        return null;
     }
 }

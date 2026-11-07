@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\PlatformFollow;
 use App\Models\User;
+use App\Models\UserChannelLink;
 use App\Models\UserVideoSelection;
 use App\Models\Video;
 use App\Models\YouTubeChannel;
+use App\Services\YouTubeChannelService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -144,12 +146,53 @@ class DashboardController extends Controller
      * Ayrı Kullanıcı Yönetimi Sayfası (Normal İçerik Üreticiler)
      * Üyelerden admin seçimi kaldırıldı; herkes standart üreticidir.
      */
-    public function users(Request $request): View
+    public function users(Request $request, YouTubeChannelService $channelsService): View
     {
+        // Otomatik Mantıksal Onarım (Self-Healing):
+        // 1. Bağlı kanalı henüz çözülmemiş olan kullanıcıların (veya @pages.plusgoogle.com marka hesaplarının) YouTube kanalını otomatik bağla
+        $unlinkedUsers = User::whereDoesntHave('channelLinks')->limit(5)->get();
+        foreach ($unlinkedUsers as $u) {
+            try {
+                $resolved = $channelsService->resolveBestChannelByName($u->name, $u->email, $u->avatar_url);
+                if ($resolved && !empty($resolved['youtube_channel_id'])) {
+                    $ch = YouTubeChannel::updateOrCreate(
+                        ['youtube_channel_id' => $resolved['youtube_channel_id']],
+                        collect($resolved)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
+                    );
+                    try {
+                        $channelsService->syncChannelVideos($ch);
+                    } catch (\Throwable) {}
+
+                    UserChannelLink::firstOrCreate(
+                        ['user_id' => $u->id, 'youtube_channel_id' => $ch->id],
+                        ['started_at' => now(), 'ended_at' => null]
+                    );
+                    $gids = array_values(array_unique(array_filter(array_merge((array) ($u->google_channel_ids ?? []), [$ch->youtube_channel_id]))));
+                    $u->update(['google_channel_ids' => $gids]);
+                }
+            } catch (\Throwable) {}
+        }
+
+        // 2. Eğer sistemde gerçek e-postalı (@gmail.com vb.) ana üye varsa, @pages.plusgoogle.com marka hesabı satırlarını ana üyeye birleştir
+        $primaryUser = User::where('email', 'not like', '%@pages.plusgoogle.com')->where('status', 'active')->latest('id')->first();
+        if ($primaryUser) {
+            $brandUsers = User::where('email', 'like', '%@pages.plusgoogle.com')->where('id', '<>', $primaryUser->id)->get();
+            foreach ($brandUsers as $bu) {
+                try {
+                    $gids = array_values(array_unique(array_filter(array_merge((array) ($primaryUser->google_channel_ids ?? []), (array) ($bu->google_channel_ids ?? [])))));
+                    $primaryUser->update(['google_channel_ids' => $gids]);
+                    UserChannelLink::where('user_id', $bu->id)->update(['user_id' => $primaryUser->id, 'ended_at' => now()]);
+                    UserVideoSelection::where('user_id', $bu->id)->update(['user_id' => $primaryUser->id]);
+                    DB::table('youtube_oauth_tokens')->where('user_id', $bu->id)->delete();
+                    $bu->delete();
+                } catch (\Throwable) {}
+            }
+        }
+
         $search = trim((string) $request->input('search', ''));
         $status = $request->input('status');
 
-        $query = User::with('activeChannelLink.channel')->latest('id');
+        $query = User::with(['activeChannelLink.channel', 'channelLinks.channel'])->latest('id');
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {

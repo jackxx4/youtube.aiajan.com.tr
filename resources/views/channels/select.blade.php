@@ -106,43 +106,40 @@
     <!-- 1. Seçenek: Google ile Otomatik Kanal Çekme -->
     <div class="card">
         <div class="eyebrow" style="color:var(--wine);">Önerilen Yöntem</div>
-        <h2 style="font:25px 'DM Serif Display';margin:10px 0;">Google ile Kanalları Getir</h2>
-        <p class="muted" style="margin-bottom:12px;line-height:1.6;">
-            Google hesabınızda yetkilendirilmiş YouTube kanallarını otomatik olarak listeler ve tek tıkla seçmenizi sağlar.
+        <h2 style="font:25px 'DM Serif Display';margin:10px 0;">Google ile Kanal Ekle</h2>
+        <p class="muted" style="margin-bottom:16px;line-height:1.6;">
+            Google hesabınıza bağlı diğer YouTube kanallarınızı (Marka Hesaplarınızı) açılan listeden seçerek tek tıkla mevcut profilinize ekleyin. Her kanalın son 10 videosu otomatik çekilir.
         </p>
-        <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px 13px;margin-bottom:16px;font-size:12px;color:#7a5c00;line-height:1.5;">
-            ⚠️ Google, uygulamamız için doğrulama sürecindedir. Açılan ekranda <strong>"Gelişmiş"</strong> → <strong>"YouTube Keşif'e git (güvenli değil)"</strong> seçeneğiyle devam edebilirsiniz. Verileriniz güvende; bağımsız geliştirici uygulamalarına Google otomatik bu uyarıyı gösterir.
-        </div>
 
         <button id="btn-sync-google" class="btn" type="button" style="width:100%;padding:14px;background:#4285F4;display:flex;align-items:center;justify-content:center;gap:10px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#fff"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff" opacity="0.9"/>
             </svg>
-            <span id="btn-sync-text">Google ile Kanallarımı Getir</span>
+            <span id="btn-sync-text">Google Hesabımdan Kanal Seç & Ekle</span>
         </button>
     </div>
 
-    <!-- 2. Seçenek: Kanal Linki / Kullanıcı Adı ile Hızlı Bağlama -->
+    <!-- 2. Seçenek: Kanal Linki / Kullanıcı Adı ile Hızlı & Çoklu Bağlama -->
     <div class="card">
-        <div class="eyebrow">Hızlı & Bağımsız Kurulum</div>
+        <div class="eyebrow">Hızlı & Çoklu Kanal Ekleme</div>
         <h2 style="font:25px 'DM Serif Display';margin:10px 0;">Kanal Adı veya Linki</h2>
         <p class="muted" style="margin-bottom:20px;line-height:1.6;">
-            Kanal kullanıcı adınızı (örn: <code>@aiajan</code>) veya YouTube kanal linkinizi girin. Sistem kanalınızı anında tanır.
+            Kanal adınızı, <code>@kullaniciadi</code> bilginizi veya linkinizi girin. Birden fazla kanalınızı virgülle ayırarak (örn: <code>arabamsarj, @kanal2, @kanal3</code>) tek seferde ekleyebilirsiniz.
         </p>
 
         <form method="post" action="{{ route('channels.store') }}">
             @csrf
             <div style="margin-bottom:16px;">
-                <label for="channel_input" style="display:block;font-weight:600;font-size:13px;margin-bottom:6px;">YouTube Kanal Bağlantısı veya @kullanıcıadı</label>
-                <input type="text" class="field" id="channel_input" name="channel_input" placeholder="@kanaladi veya https://youtube.com/@..." value="{{ old('channel_input') }}" required>
+                <label for="channel_input" style="display:block;font-weight:600;font-size:13px;margin-bottom:6px;">YouTube Kanal Adı, @kullanıcıadı veya Linki (Çoklu için virgül kullanın)</label>
+                <input type="text" class="field" id="channel_input" name="channel_input" placeholder="Örn: arabamsarj, @kanal2, @kanal3" value="{{ old('channel_input') }}" required>
             </div>
-            <button class="btn secondary" type="submit" style="width:100%;padding:14px;font-weight:700;">Kanalı Doğrula ve Bağla</button>
+            <button class="btn secondary" type="submit" style="width:100%;padding:14px;font-weight:700;">Kanalları Doğrula ve Ekle</button>
         </form>
     </div>
 </div>
 
-<!-- Firebase Google OAuth ile Kanal Çekme Skripti -->
+<!-- Firebase Google OAuth ile Kanal Çekme Skripti (Doğrulama Uyarısız / Hassas İzin İstemeyen Mod) -->
 <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -156,14 +153,14 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const ytProvider = new GoogleAuthProvider();
-    ytProvider.addScope('https://www.googleapis.com/auth/youtube.readonly');
-    ytProvider.setCustomParameters({ prompt: 'consent select_account' });
+    ytProvider.addScope('openid');
+    ytProvider.addScope('email');
+    ytProvider.addScope('profile');
+    ytProvider.setCustomParameters({ prompt: 'select_account' });
 
     const syncBtn = document.getElementById('btn-sync-google');
     const syncText = document.getElementById('btn-sync-text');
     const alertBox = document.getElementById('channel-alert');
-    const dynContainer = document.getElementById('dynamic-channels-container');
-    const cardsGrid = document.getElementById('channel-cards-grid');
 
     function showAlert(msg, isError = true) {
         alertBox.style.display = 'block';
@@ -173,22 +170,16 @@
 
     syncBtn?.addEventListener('click', async () => {
         syncBtn.disabled = true;
-        syncText.textContent = 'Google ile bağlanılıyor...';
+        syncText.textContent = 'Google penceresi açılıyor...';
         alertBox.style.display = 'none';
 
         try {
             const result = await signInWithPopup(auth, ytProvider);
             const credential = GoogleAuthProvider.credentialFromResult(result);
             const accessToken = credential?.accessToken || result?._tokenResponse?.oauthAccessToken || '';
+            const pickedUser = result?.user;
 
-            if (!accessToken) {
-                showAlert('Google erişim belirteci alınamadı. Lütfen sağdaki "Kanal Adı veya Linki" kutusuna kanal kullanıcı adınızı (@kanaladi) yazarak bağlayın.');
-                syncBtn.disabled = false;
-                syncText.textContent = 'Google ile Kanallarımı Getir';
-                return;
-            }
-
-            syncText.textContent = 'Kanallar taranıyor...';
+            syncText.textContent = 'Kanal ve videoları aktarılıyor...';
 
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const resp = await fetch("{{ route('channels.sync_google') }}", {
@@ -198,47 +189,33 @@
                     'X-CSRF-TOKEN': csrf || '',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ accessToken: accessToken })
+                body: JSON.stringify({
+                    accessToken: accessToken,
+                    displayName: pickedUser?.displayName || '',
+                    email: pickedUser?.email || '',
+                    photoUrl: pickedUser?.photoURL || ''
+                })
             });
 
             const data = await resp.json();
 
-            if (resp.ok && data.success && data.channels && data.channels.length > 0) {
-                showAlert(data.message, false);
-                renderChannels(data.channels);
-                syncText.textContent = '✓ Kanallar Getirildi';
-                dynContainer.style.display = 'block';
-                dynContainer.scrollIntoView({ behavior: 'smooth' });
+            if (resp.ok && data.success) {
+                showAlert(data.message || 'Kanal başarıyla eklendi! Sayfa güncelleniyor...', false);
+                syncText.textContent = '✓ Kanal Eklendi, Yenileniyor...';
+                setTimeout(() => window.location.reload(), 500);
             } else {
-                showAlert(data.message || 'Kanal bulunamadı. Lütfen kullanıcı adı (@kanaladi) ile bağlamayı deneyin.');
+                showAlert(data.message || 'Kanal bulunamadı. Lütfen sağdaki kutuya kanal adınızı yazarak ekleyin.');
                 syncBtn.disabled = false;
-                syncText.textContent = 'Google ile Kanallarımı Getir';
+                syncText.textContent = 'Google Hesabımdan Kanal Seç & Ekle';
             }
         } catch (err) {
             console.error(err);
             if (err.code !== 'auth/popup-closed-by-user') {
-                showAlert('Google kanal erişimi alınamadı (' + (err.message || err.code) + '). Sağdaki "Kanal Adı veya Linki" kutusuna @kullanıcıadınızı yazarak da anında bağlayabilirsiniz.');
+                showAlert('Google penceresi tamamlanamadı (' + (err.message || err.code) + '). Sağdaki "Kanal Adı veya Linki" kutusuna kanal adınızı yazarak da anında ekleyebilirsiniz.');
             }
             syncBtn.disabled = false;
-            syncText.textContent = 'Google ile Kanallarımı Getir';
+            syncText.textContent = 'Google Hesabımdan Kanal Seç & Ekle';
         }
     });
-
-    function renderChannels(channels) {
-        cardsGrid.innerHTML = '';
-        channels.forEach((ch, idx) => {
-            const label = document.createElement('label');
-            label.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--cream);';
-            label.innerHTML = `
-                <input type="radio" name="channel_id" value="${ch.youtube_channel_id}" ${idx === 0 ? 'checked' : ''} style="accent-color:var(--wine);width:18px;height:18px;">
-                ${ch.thumbnail_url ? `<img src="${ch.thumbnail_url}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">` : `<div style="width:48px;height:48px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-weight:700;">Y</div>`}
-                <div style="overflow:hidden;">
-                    <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ch.title}</div>
-                    <div style="font-size:12px;color:var(--muted);">${ch.custom_url || ch.youtube_channel_id}</div>
-                </div>
-            `;
-            cardsGrid.appendChild(label);
-        });
-    }
 </script>
 @endsection

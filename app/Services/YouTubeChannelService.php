@@ -65,6 +65,139 @@ class YouTubeChannelService
     }
 
     /**
+     * Google Marka Hesabı (@pages.plusgoogle.com) veya profil adı üzerinden
+     * en uygun YouTube kanalını (ID, başlık, handle, avatar) bulur.
+     */
+    public function resolveBestChannelByName(string $name, ?string $email = null, ?string $avatar = null): ?array
+    {
+        $candidates = [];
+        $cleanName = trim($name);
+        if ($cleanName !== '') {
+            $candidates[] = $cleanName;
+        }
+
+        if ($email && str_contains($email, '@pages.plusgoogle.com')) {
+            $prefix = explode('@', $email)[0];
+            $brandSlug = preg_replace('/-\d+$/', '', $prefix);
+            if ($brandSlug && !in_array($brandSlug, $candidates, true)) {
+                $candidates[] = $brandSlug;
+            }
+        }
+
+        foreach ($candidates as $query) {
+            $found = $this->searchPublicChannels($query, 6);
+            if ($found->isEmpty()) {
+                continue;
+            }
+
+            $normQuery = mb_strtolower(preg_replace('/\s+/', '', $query));
+
+            // 1. Tam başlık veya handle eşleşmesi ara
+            $exact = $found->first(function ($ch) use ($normQuery, $query) {
+                $normTitle = mb_strtolower(preg_replace('/\s+/', '', $ch['title'] ?? ''));
+                $normHandle = mb_strtolower(ltrim($ch['custom_url'] ?? '', '@'));
+                return $normTitle === $normQuery
+                    || mb_strtolower($ch['title'] ?? '') === mb_strtolower($query)
+                    || $normHandle === $normQuery
+                    || str_starts_with($normHandle, $normQuery);
+            });
+
+            if ($exact) {
+                if (empty($exact['thumbnail_url']) && $avatar) {
+                    $exact['thumbnail_url'] = $avatar;
+                }
+                return $exact;
+            }
+
+            // 2. İlk sonucu döndür
+            $first = $found->first();
+            if ($first) {
+                if (empty($first['thumbnail_url']) && $avatar) {
+                    $first['thumbnail_url'] = $avatar;
+                }
+                return $first;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Hassas OAuth izni (youtube.readonly) gerekmeden, açık YouTube dizini üzerinden
+     * kanal adı, @handle veya hesap ismiyle eşleşen YouTube kanallarını bulur.
+     */
+    public function searchPublicChannels(string $query, int $limit = 6): Collection
+    {
+        $query = trim($query);
+        if (empty($query)) {
+            return collect();
+        }
+
+        $q = urlencode($query);
+        $url = "https://www.youtube.com/results?search_query={$q}&sp=EgIQAg%3D%3D";
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            CURLOPT_TIMEOUT        => 7,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $html = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if (!$html || $httpCode !== 200) {
+            return collect();
+        }
+
+        $results = [];
+        if (preg_match('/var ytInitialData = (\{.*?\});<\/script>/s', $html, $m)) {
+            $data = json_decode($m[1], true);
+            $sections = $data['contents']['twoColumnSearchResultsRenderer']['primaryContents']['sectionListRenderer']['contents'] ?? [];
+            foreach ($sections as $sec) {
+                $contents = $sec['itemSectionRenderer']['contents'] ?? [];
+                foreach ($contents as $item) {
+                    if (!isset($item['channelRenderer'])) {
+                        continue;
+                    }
+                    $cr = $item['channelRenderer'];
+                    $id = $cr['channelId'] ?? '';
+                    $title = $cr['title']['simpleText'] ?? '';
+
+                    if (empty($id) || empty($title) || str_ends_with($title, ' - Topic')) {
+                        continue;
+                    }
+
+                    $handle = $cr['subscriberCountText']['simpleText'] ?? null;
+                    if ($handle && !str_starts_with($handle, '@')) {
+                        $canon = $cr['navigationEndpoint']['browseEndpoint']['canonicalBaseUrl'] ?? null;
+                        $handle = ($canon && str_starts_with($canon, '/@')) ? substr($canon, 1) : null;
+                    }
+
+                    $thumbs = $cr['thumbnail']['thumbnails'] ?? [];
+                    $lastThumb = !empty($thumbs) ? end($thumbs)['url'] : null;
+                    if ($lastThumb && str_starts_with($lastThumb, '//')) {
+                        $lastThumb = 'https:' . $lastThumb;
+                    }
+
+                    $results[$id] = [
+                        'youtube_channel_id' => $id,
+                        'title'              => $title,
+                        'custom_url'         => $handle,
+                        'thumbnail_url'      => $lastThumb,
+                    ];
+
+                    if (count($results) >= $limit) {
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        return collect(array_values($results));
+    }
+
+    /**
      * Kanal sisteme eklendiğinde son 10 videosunu otomatik çeker ve veritabanına kaydeder.
      * 1. Öncelik: Resmi YouTube RSS beslemesi (Hızlı, temiz, sıfır kota)
      * 2. Yedek: YouTube kanal web sayfası + OEmbed
