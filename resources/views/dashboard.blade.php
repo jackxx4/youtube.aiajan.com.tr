@@ -13,7 +13,7 @@
     </div>
 @else
     <!-- Üst İstatistik & Durum Kartları -->
-    <div class="grid" style="margin-top:22px;">
+    <div class="grid" style="margin-top:22px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));">
         <div class="card">
             <div class="eyebrow">Bağlı kanal</div>
             <div class="person" style="margin-top:12px;">
