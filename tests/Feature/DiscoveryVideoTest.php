@@ -128,4 +128,75 @@ class DiscoveryVideoTest extends TestCase
         $response->assertRedirect(route('discovery.videos'));
         $this->assertNull(session('selected_video_ids'));
     }
+
+    public function test_user_with_multiple_channels_sees_other_channels_videos_except_active_channel(): void
+    {
+        // Kullanıcı 2 kanala sahip: Kanal A (Aktif), Kanal B (Alternatif)
+        $multiUser = User::create([
+            'name'       => 'Çoklu Kanal Sahibi',
+            'email'      => 'coklu@example.com',
+            'username'   => 'coklukanal',
+            'google_sub' => 'sub_multi_ch',
+            'status'     => 'active',
+        ]);
+
+        $channelA = YouTubeChannel::create([
+            'youtube_channel_id' => 'UC_MULTI_CH_A',
+            'title'              => 'Kanal A (Aktif)',
+            'last_synced_at'     => now(),
+        ]);
+
+        $channelB = YouTubeChannel::create([
+            'youtube_channel_id' => 'UC_MULTI_CH_B',
+            'title'              => 'Kanal B (Alternatif)',
+            'last_synced_at'     => now(),
+        ]);
+
+        // Kanal A aktif bağ
+        UserChannelLink::create([
+            'user_id'            => $multiUser->id,
+            'youtube_channel_id' => $channelA->id,
+            'started_at'         => now(),
+            'ended_at'           => null,
+        ]);
+
+        // Kanal B eski/diğer bağ
+        UserChannelLink::create([
+            'user_id'            => $multiUser->id,
+            'youtube_channel_id' => $channelB->id,
+            'started_at'         => now()->subDays(1),
+            'ended_at'           => now()->subMinutes(10),
+        ]);
+
+        $videoA = Video::create([
+            'youtube_video_id'   => 'vid_multi_a_1',
+            'youtube_channel_id' => $channelA->id,
+            'title'              => 'Kanal A Özel Videosu',
+            'availability'       => 'available',
+        ]);
+        UserVideoSelection::create([
+            'user_id'            => $multiUser->id,
+            'video_id'           => $videoA->id,
+            'youtube_channel_id' => $channelA->id,
+        ]);
+
+        $videoB = Video::create([
+            'youtube_video_id'   => 'vid_multi_b_1',
+            'youtube_channel_id' => $channelB->id,
+            'title'              => 'Kanal B Vitrin Videosu',
+            'availability'       => 'available',
+        ]);
+        UserVideoSelection::create([
+            'user_id'            => $multiUser->id,
+            'video_id'           => $videoB->id,
+            'youtube_channel_id' => $channelB->id,
+        ]);
+
+        // Kanal A aktifken keşfe girildiğinde:
+        // Kanal A videosu görünmez, Kanal B videosu GÖRÜNÜR!
+        $response = $this->actingAs($multiUser)->get(route('discovery.videos'));
+        $response->assertStatus(200);
+        $response->assertDontSee('Kanal A Özel Videosu');
+        $response->assertSee('Kanal B Vitrin Videosu');
+    }
 }

@@ -198,8 +198,9 @@ class DiscoveryController extends Controller
 
     /**
      * Video Keşfi:
-     * 1. SADECE kullanıcıların vitrinine seçip onayladığı videolar havuza düşer (Admin panelindeki Vitrindeki Videolar ile birebirdir).
-     * 2. Kullanıcı, hesap veya kanal HİÇBİR ZAMAN kendi videolarını keşfette göremez!
+     * 1. Kullanıcıların aktif kanal ve hesaplarına ait vitrin videoları burada listelenir.
+     * 2. Kullanıcının birden fazla kanalı varsa (örn. 4 kanal), o an AKTİF olan kanalı hariç tutulur;
+     *    diğer kanallarına ve diğer kullanıcılara ait vitrin videoları keşif havuzunda yer alır.
      * 3. 10 video gösterilir -> Kullanıcı 3 video seçer -> Seçilen 3 video sırayla oynatılır.
      */
     public function videos(Request $request): View
@@ -207,14 +208,16 @@ class DiscoveryController extends Controller
         $me = $request->user();
         $selectedIds = session('selected_video_ids');
 
-        // Kural: Kullanıcı, hesap veya kanal HİÇBİR ZAMAN kendi videolarını keşfette göremez!
-        $myLinkedChannelIds = UserChannelLink::where('user_id', $me->id)->pluck('youtube_channel_id')->all();
-        $myGoogleChannelIds = YouTubeChannel::whereIn('youtube_channel_id', (array) ($me->google_channel_ids ?? []))->pluck('id')->all();
-        $myChannelIds = array_values(array_unique(array_filter(array_merge($myLinkedChannelIds, $myGoogleChannelIds))));
+        // Kullanıcının o an temsil ettiği aktif kanal
+        $activeChannelId = UserChannelLink::where('user_id', $me->id)
+            ->whereNull('ended_at')
+            ->latest('id')
+            ->value('youtube_channel_id');
 
-        $myVideoIds = Video::whereIn('youtube_channel_id', $myChannelIds)->pluck('id')->all();
-        $mySelectedVideoIds = UserVideoSelection::where('user_id', $me->id)->pluck('video_id')->all();
-        $allMyVideoIds = array_values(array_unique(array_merge($myVideoIds, $mySelectedVideoIds)));
+        // Hariç tutulacak videolar: SADECE kullanıcının şu an aktif olarak temsil ettiği kanalına ait videolar!
+        // Kullanıcının diğer alternatif kanallarına ve diğer üreticilere ait vitrin videoları keşfette görünmelidir.
+        $excludedChannelIds = $activeChannelId ? [$activeChannelId] : [];
+        $excludedVideoIds = $activeChannelId ? Video::where('youtube_channel_id', $activeChannelId)->pluck('id')->all() : [];
 
         // Engellenen kullanıcılar
         $blockedByMe = DB::table('user_blocks')->where('blocker_user_id', $me->id)->pluck('blocked_user_id')->all();
@@ -223,12 +226,18 @@ class DiscoveryController extends Controller
 
         // 1. Sıralı Oynatıcı Modu: Kullanıcı 3 video seçmişse
         if (is_array($selectedIds) && count($selectedIds) === 3) {
-            $selectedVideos = Video::with('channel')
+            $selectedQuery = Video::with('channel')
                 ->whereIn('id', $selectedIds)
-                ->where('availability', 'available')
-                ->whereNotIn('youtube_channel_id', $myChannelIds)
-                ->whereNotIn('id', $allMyVideoIds)
-                ->get();
+                ->where('availability', 'available');
+
+            if (!empty($excludedChannelIds)) {
+                $selectedQuery->whereNotIn('youtube_channel_id', $excludedChannelIds);
+            }
+            if (!empty($excludedVideoIds)) {
+                $selectedQuery->whereNotIn('id', $excludedVideoIds);
+            }
+
+            $selectedVideos = $selectedQuery->get();
 
             if ($selectedVideos->count() === 3) {
                 $playlist = $selectedVideos->map(fn($v) => [
@@ -246,19 +255,33 @@ class DiscoveryController extends Controller
             }
         }
 
-        // 2. Seçim Modu: SADECE diğer üreticilerin vitrinine seçtiği videolar havuzdadır!
-        // Admin panelindeki "Vitrindeki Videolar" ile birebir eşleşir.
-        $poolVideoIds = UserVideoSelection::whereNotIn('youtube_channel_id', $myChannelIds)
-            ->where('user_id', '<>', $me->id)
-            ->pluck('video_id')
-            ->unique()
-            ->all();
+        // 2. Seçim Modu: SADECE vitrine seçilmiş ve aktif kanallara ait videolar havuzdadır!
+        $poolVideoQuery = UserVideoSelection::query();
+
+        if (!empty($excludedChannelIds)) {
+            $poolVideoQuery->where(function ($q) use ($excludedChannelIds) {
+                $q->whereNull('youtube_channel_id')
+                  ->orWhereNotIn('youtube_channel_id', $excludedChannelIds);
+            });
+        }
+
+        if (!empty($excludedVideoIds)) {
+            $poolVideoQuery->whereNotIn('video_id', $excludedVideoIds);
+        }
+
+        $poolVideoIds = $poolVideoQuery->pluck('video_id')->unique()->all();
 
         $query = Video::with('channel')
             ->where('availability', 'available')
-            ->whereIn('id', $poolVideoIds)
-            ->whereNotIn('youtube_channel_id', $myChannelIds)
-            ->whereNotIn('id', $allMyVideoIds);
+            ->whereIn('id', $poolVideoIds);
+
+        if (!empty($excludedChannelIds)) {
+            $query->whereNotIn('youtube_channel_id', $excludedChannelIds);
+        }
+
+        if (!empty($excludedVideoIds)) {
+            $query->whereNotIn('id', $excludedVideoIds);
+        }
 
         if (!empty($blockedUserIds)) {
             $query->whereDoesntHave('channel.links', fn($q) => $q->whereIn('user_id', $blockedUserIds));
@@ -284,18 +307,19 @@ class DiscoveryController extends Controller
         ]);
 
         $me = $request->user();
-        $myLinkedChannelIds = UserChannelLink::where('user_id', $me->id)->pluck('youtube_channel_id')->all();
-        $myGoogleChannelIds = YouTubeChannel::whereIn('youtube_channel_id', (array) ($me->google_channel_ids ?? []))->pluck('id')->all();
-        $myChannelIds = array_values(array_unique(array_filter(array_merge($myLinkedChannelIds, $myGoogleChannelIds))));
+        $activeChannelId = UserChannelLink::where('user_id', $me->id)
+            ->whereNull('ended_at')
+            ->latest('id')
+            ->value('youtube_channel_id');
 
-        // Kural denetimi: Kendi videosunu seçemez
-        $forbiddenCount = Video::whereIn('id', $data['video_ids'])
-            ->where(function ($q) use ($myChannelIds, $me) {
-                $q->whereIn('youtube_channel_id', $myChannelIds)
-                  ->orWhereHas('userSelections', fn($sq) => $sq->where('user_id', $me->id));
-            })->count();
+        // Kural denetimi: O an aktif olan kendi kanalının videosunu seçemez
+        if ($activeChannelId) {
+            $forbiddenCount = Video::whereIn('id', $data['video_ids'])
+                ->where('youtube_channel_id', $activeChannelId)
+                ->count();
 
-        abort_if($forbiddenCount > 0, 403, 'Kendi kanalınıza veya hesabınıza ait videoları keşif listesine ekleyemezsiniz.');
+            abort_if($forbiddenCount > 0, 403, 'Aktif olarak temsil ettiğiniz kendi kanalınıza ait videoları keşif listesine ekleyemezsiniz.');
+        }
 
         session(['selected_video_ids' => $data['video_ids']]);
 

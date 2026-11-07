@@ -541,23 +541,27 @@
             </a>
             <a href="{{ route('admin.users') }}" class="admin-nav-item {{ request()->routeIs('admin.users*') ? 'active' : '' }}">
                 <span class="icon">👥</span>
-                <span>Kullanıcı & Hesaplar</span>
+                <span>Kullanıcılar</span>
             </a>
             <a href="{{ route('admin.channels') }}" class="admin-nav-item {{ request()->routeIs('admin.channels*') ? 'active' : '' }}">
                 <span class="icon">📺</span>
-                <span>Kanal Yönetimi</span>
+                <span>Kanallar</span>
             </a>
             <a href="{{ route('admin.showcase_videos') }}" class="admin-nav-item {{ request()->routeIs('admin.showcase_videos*') ? 'active' : '' }}">
                 <span class="icon">✨</span>
                 <span>Vitrin Videoları</span>
             </a>
+            <a href="{{ route('admin.follows') }}" class="admin-nav-item {{ request()->routeIs('admin.follows*') ? 'active' : '' }}">
+                <span class="icon">🤝</span>
+                <span>Platform Takipleri</span>
+            </a>
+            <a href="{{ route('admin.messages') }}" class="admin-nav-item {{ request()->routeIs('admin.messages*') ? 'active' : '' }}">
+                <span class="icon">💬</span>
+                <span>İletişim Talepleri</span>
+            </a>
             <a href="{{ route('admin.admins') }}" class="admin-nav-item {{ request()->routeIs('admin.admins*') ? 'active' : '' }}">
                 <span class="icon">🛡️</span>
                 <span>Yöneticiler</span>
-            </a>
-            <a href="{{ route('admin.dashboard') }}#talepler" class="admin-nav-item">
-                <span class="icon">💬</span>
-                <span>Destek Talepleri</span>
             </a>
         </nav>
 
@@ -595,17 +599,14 @@
     <main class="admin-main">
         <header class="admin-topbar">
             <div class="topbar-left">
-                <span class="system-tag">MIT SEVİYESİ SIFIR-GÜVEN KORUMALI</span>
-                <span style="font-size:13px;color:var(--text-muted);">Platform Yönetim ve Denetim Merkezi</span>
+                <span class="system-tag">MIT SIFIR-GÜVEN</span>
+                <span style="font-size:13px;color:var(--text-muted);">Platform Yönetim Konsolu</span>
             </div>
 
             <div class="topbar-right">
-                <form method="POST" action="{{ route('admin.logout') }}" style="display:inline;">
-                    @csrf
-                    <button type="submit" class="btn-admin btn-admin-danger" style="padding:6px 12px;font-size:12px;">
-                        🚪 Çıkış
-                    </button>
-                </form>
+                <span style="font-size:12px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">
+                    Yönetici: <strong style="color:#fff;">{{ Auth::guard('admin')->user()->name ?? 'Emrah' }}</strong>
+                </span>
             </div>
         </header>
 

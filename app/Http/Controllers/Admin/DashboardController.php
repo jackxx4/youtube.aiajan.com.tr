@@ -38,40 +38,16 @@ class DashboardController extends Controller
             ->where('action', 'contact_form_submitted')
             ->count();
 
-        // 2. Vitrindeki Videolar (Kullanıcıların eklediği güncel vitrin videoları)
+        // 2. Özet Hareketler: Son 5 Vitrin Videosu & Son 5 Takip
         $recentShowcaseVideos = UserVideoSelection::with(['user', 'video.channel'])
             ->latest('id')
-            ->limit(10)
+            ->limit(5)
             ->get();
 
-        // 3. Son İletişim & Destek Talepleri (audit_logs üzerinden)
-        $recentMessages = DB::table('audit_logs')
-            ->where('action', 'contact_form_submitted')
+        $recentFollows = PlatformFollow::with(['follower', 'followed', 'channel'])
             ->latest('id')
-            ->limit(8)
-            ->get()
-            ->map(function ($row) {
-                $meta = json_decode((string) $row->metadata, true) ?: [];
-                return [
-                    'id'         => $row->id,
-                    'name'       => $meta['name'] ?? 'İsimsiz',
-                    'email'      => $meta['email'] ?? '—',
-                    'subject'    => $meta['subject'] ?? 'Genel',
-                    'message'    => $meta['message'] ?? '',
-                    'ip_hash'    => substr((string) ($row->ip_hash ?? ''), 0, 10) . '...',
-                    'created_at' => $row->created_at,
-                ];
-            });
-
-        // 4. Sistem & Telemetri
-        $systemInfo = [
-            'version'     => config('version.current', '1.6.6'),
-            'release'     => config('version.release_name', 'YouTube Keşif'),
-            'php_version' => PHP_VERSION,
-            'laravel_ver' => app()->version(),
-            'environment' => app()->environment(),
-            'db_driver'   => DB::connection()->getDriverName(),
-        ];
+            ->limit(5)
+            ->get();
 
         return view('admin.dashboard', compact(
             'totalUsers',
@@ -82,12 +58,86 @@ class DashboardController extends Controller
             'totalFollows',
             'followsToday',
             'totalAdmins',
-            'activeSupporters',
             'totalMessages',
             'recentShowcaseVideos',
-            'recentMessages',
-            'systemInfo'
+            'recentFollows'
         ));
+    }
+
+    /**
+     * Başlıklara Göre Platform Takipleri (Abone/Takip Havuzu)
+     */
+    public function follows(Request $request): View
+    {
+        $pool = $request->input('pool'); // normal, supporter
+        $search = trim((string) $request->input('search', ''));
+
+        $query = PlatformFollow::with(['follower', 'followed', 'channel'])->latest('id');
+
+        if (in_array($pool, ['normal', 'supporter'], true)) {
+            $query->where('pool_type', $pool);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('follower', function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                })->orWhereHas('followed', function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                })->orWhereHas('channel', function ($sq) use ($search) {
+                    $sq->where('title', 'like', "%{$search}%")
+                       ->orWhere('youtube_channel_id', 'like', "%{$search}%");
+                });
+            });
+        }
+
+        $follows = $query->paginate(25)->withQueryString();
+        $totalFollows = PlatformFollow::count();
+        $normalCount = PlatformFollow::where('pool_type', 'normal')->count();
+        $supporterCount = PlatformFollow::where('pool_type', 'supporter')->count();
+
+        return view('admin.follows', compact('follows', 'pool', 'search', 'totalFollows', 'normalCount', 'supporterCount'));
+    }
+
+    /**
+     * Takip kaydını siler.
+     */
+    public function destroyFollow(Request $request, PlatformFollow $follow): RedirectResponse
+    {
+        $follow->delete();
+        return back()->with('status', 'Takip kaydı başarıyla silindi.');
+    }
+
+    /**
+     * İletişim & Destek Talepleri Müstakil Sayfası
+     */
+    public function messages(): View
+    {
+        $messages = DB::table('audit_logs')
+            ->where('action', 'contact_form_submitted')
+            ->latest('id')
+            ->paginate(20);
+
+        $parsedMessages = $messages->through(function ($row) {
+            $meta = json_decode((string) $row->metadata, true) ?: [];
+            return [
+                'id'         => $row->id,
+                'name'       => $meta['name'] ?? 'İsimsiz',
+                'email'      => $meta['email'] ?? '—',
+                'subject'    => $meta['subject'] ?? 'Genel',
+                'message'    => $meta['message'] ?? '',
+                'ip_hash'    => substr((string) ($row->ip_hash ?? ''), 0, 10) . '...',
+                'created_at' => $row->created_at,
+            ];
+        });
+
+        $totalMessages = DB::table('audit_logs')
+            ->where('action', 'contact_form_submitted')
+            ->count();
+
+        return view('admin.messages', compact('parsedMessages', 'totalMessages'));
     }
 
     /**

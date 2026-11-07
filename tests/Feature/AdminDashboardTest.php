@@ -356,5 +356,76 @@ class AdminDashboardTest extends TestCase
         $response->assertSessionHas('status');
         $this->assertDatabaseMissing('youtube_channels', ['id' => $orphan->id]);
     }
+
+    public function test_admin_can_access_follows_page_and_delete_follow(): void
+    {
+        $admin = \App\Models\Admin::firstOrCreate(
+            ['username' => 'emrah'],
+            [
+                'name'      => 'Emrah',
+                'email'     => 'emrah@aiajan.com.tr',
+                'password'  => Hash::make('985758'),
+                'role'      => 'super_admin',
+                'is_active' => true,
+            ]
+        );
+
+        $follower = User::create([
+            'name'       => 'Takipçi Üye',
+            'email'      => 'takipci@example.com',
+            'username'   => 'takipciuser',
+            'role'       => 'user',
+            'google_sub' => 'sub_f_1',
+        ]);
+
+        $followed = User::create([
+            'name'       => 'Takip Edilen Üye',
+            'email'      => 'takipedilen@example.com',
+            'username'   => 'takipedilenuser',
+            'role'       => 'user',
+            'google_sub' => 'sub_f_2',
+        ]);
+
+        $channel = \App\Models\YouTubeChannel::create([
+            'youtube_channel_id' => 'UC_FOLLOW_CH',
+            'title'              => 'Takip Edilen Kanal',
+            'is_active'          => true,
+        ]);
+
+        $follow = \App\Models\PlatformFollow::create([
+            'follower_user_id'   => $follower->id,
+            'followed_user_id'   => $followed->id,
+            'youtube_channel_id' => $channel->id,
+            'pool_type'          => 'normal',
+            'created_at'         => now(),
+        ]);
+
+        $response = $this->actingAs($admin, 'admin')->get(route('admin.follows'));
+        $response->assertStatus(200);
+        $response->assertSee('Platform Takipleri');
+        $response->assertSee('Takip Edilen Kanal');
+
+        $delResponse = $this->actingAs($admin, 'admin')->delete(route('admin.follows.destroy', $follow->id));
+        $delResponse->assertSessionHas('status');
+        $this->assertDatabaseMissing('platform_follows', ['id' => $follow->id]);
+    }
+
+    public function test_admin_can_access_messages_page(): void
+    {
+        $admin = \App\Models\Admin::firstOrCreate(
+            ['username' => 'emrah'],
+            [
+                'name'      => 'Emrah',
+                'email'     => 'emrah@aiajan.com.tr',
+                'password'  => Hash::make('985758'),
+                'role'      => 'super_admin',
+                'is_active' => true,
+            ]
+        );
+
+        $response = $this->actingAs($admin, 'admin')->get(route('admin.messages'));
+        $response->assertStatus(200);
+        $response->assertSee('İletişim Talepleri');
+    }
 }
 

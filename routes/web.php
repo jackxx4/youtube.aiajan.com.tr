@@ -83,6 +83,9 @@ Route::prefix('yonetim')->name('admin.')->group(function () {
         Route::post('/kanallar/sahipsiz-temizle', [AdminDashboardController::class, 'cleanOrphanChannels'])->name('channels.clean_orphans');
         Route::get('/vitrin-videolari', [AdminDashboardController::class, 'showcaseVideos'])->name('showcase_videos');
         Route::delete('/vitrin-videolari/{selection}', [AdminDashboardController::class, 'destroyShowcaseVideo'])->name('showcase_videos.destroy');
+        Route::get('/takipler', [AdminDashboardController::class, 'follows'])->name('follows');
+        Route::delete('/takipler/{follow}', [AdminDashboardController::class, 'destroyFollow'])->name('follows.destroy');
+        Route::get('/talepler', [AdminDashboardController::class, 'messages'])->name('messages');
         Route::get('/yoneticiler', [AdminDashboardController::class, 'admins'])->name('admins');
         Route::post('/yoneticiler', [AdminDashboardController::class, 'storeAdmin'])->name('admins.store');
         Route::delete('/yoneticiler/{admin}', [AdminDashboardController::class, 'destroyAdmin'])->name('admins.destroy');
