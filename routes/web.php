@@ -24,7 +24,8 @@ Route::get('/_deploy/artisan', function (Request $request) {
     $allowed = ['migrate', 'optimize:clear', 'config:clear', 'view:clear', 'route:clear'];
     abort_unless(in_array($command, $allowed, true), 400, 'Geçersiz komut');
 
-    Artisan::call($command, ['--force' => true]);
+    $params = $command === 'migrate' ? ['--force' => true] : [];
+    Artisan::call($command, $params);
     return response()->json([
         'status' => 'success',
         'command' => $command,

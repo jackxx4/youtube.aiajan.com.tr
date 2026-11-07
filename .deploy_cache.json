@@ -60,6 +60,6 @@
   "resources/views/layouts/app.blade.php": "6849_1794025016",
   "resources/views/channels/select.blade.php": "1201_1794021548",
   "routes/console.php": "210_1794021548",
-  "routes/web.php": "2773_1794026366",
+  "routes/web.php": "2826_1794026394",
   "crates/youtube-sync/src/main.rs": "9580_1794024249"
 }
