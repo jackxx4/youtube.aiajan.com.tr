@@ -70,9 +70,12 @@
     <div class="card">
         <div class="eyebrow" style="color:var(--wine);">Önerilen Yöntem</div>
         <h2 style="font:25px 'DM Serif Display';margin:10px 0;">Google ile Kanalları Getir</h2>
-        <p class="muted" style="margin-bottom:20px;line-height:1.6;">
+        <p class="muted" style="margin-bottom:12px;line-height:1.6;">
             Google hesabınızda yetkilendirilmiş YouTube kanallarını otomatik olarak listeler ve tek tıkla seçmenizi sağlar.
         </p>
+        <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px 13px;margin-bottom:16px;font-size:12px;color:#7a5c00;line-height:1.5;">
+            ⚠️ Google, uygulamamız için doğrulama sürecindedir. Açılan ekranda <strong>"Gelişmiş"</strong> → <strong>"YouTube Keşif'e git (güvenli değil)"</strong> seçeneğiyle devam edebilirsiniz. Verileriniz güvende; bağımsız geliştirici uygulamalarına Google otomatik bu uyarıyı gösterir.
+        </div>
 
         <button id="btn-sync-google" class="btn" type="button" style="width:100%;padding:14px;background:#4285F4;display:flex;align-items:center;justify-content:center;gap:10px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

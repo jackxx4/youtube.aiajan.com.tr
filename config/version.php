@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'current' => '1.5.2',
-    'release_name' => 'Login Düzeltme — youtube.readonly Scope Login\'dan Ayrıldı',
-    'updated_at' => '2026-11-07T19:30:00',
+    'current' => '1.5.3',
+    'release_name' => 'Google Doğrulama Uyarısı Kullanıcıya Gösterildi',
+    'updated_at' => '2026-11-07T20:00:00',
 ];
 
 
