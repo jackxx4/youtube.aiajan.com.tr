@@ -62,7 +62,7 @@
 <body>
 <div class="shell">
     <aside class="side">
-        <a class="brand" href="{{ route('home') }}">YouTube Keşif<small>creator community</small></a>
+        <a class="brand" href="{{ route('home') }}">YouTube Keşif<small>aiajan.com.tr topluluğu</small></a>
         <nav class="nav">
             @php $cur = request()->routeIs(...['dashboard']) ? 'dashboard' : (request()->routeIs('discovery.users*') ? 'discovery' : (request()->routeIs('discovery.videos*') ? 'videos' : (request()->routeIs('profile*') ? 'profile' : (request()->routeIs('admin*') ? 'admin' : '')))); @endphp
             <a href="{{ route('dashboard') }}" class="{{ $cur==='dashboard' ? 'active' : '' }}"><span class="nav-icon">🏠</span><span>Genel Bakış</span></a>
@@ -74,11 +74,11 @@
                 <a href="{{ route('admin.dashboard') }}" class="{{ $cur==='admin' ? 'active' : '' }}"><span class="nav-icon">🔧</span><span>Yönetim</span></a>
             @endif
         </nav>
-        <div class="sidefoot">Daha iyi keşif, gerçek topluluk.<br>© {{ date('Y') }} AIAjan</div>
+        <div class="sidefoot">Daha iyi keşif, gerçek topluluk.<br>© {{ date('Y') }} <a href="https://aiajan.com.tr" target="_blank" style="color:#d6bca8;text-decoration:underline;">AIAjan</a></div>
     </aside>
     <main class="main">
         <header class="top">
-            <span>Bağımsız içerik üretici topluluğu</span>
+            <span><a href="https://aiajan.com.tr" target="_blank" style="color:var(--muted);text-decoration:none;font-weight:600;">aiajan.com.tr</a> · Bağımsız içerik üretici topluluğu</span>
             @if(auth()->check())
                 <form method="post" action="{{ route('logout') }}">
                     @csrf

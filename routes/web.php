@@ -13,6 +13,7 @@ Route::get('/',fn()=>view('welcome'))->name('home');
 Route::get('/giris',fn()=>view('auth.login'))->name('login');
 Route::get('/auth/google',[GoogleAuthController::class,'redirect'])->name('auth.google');
 Route::get('/auth/google/callback',[GoogleAuthController::class,'callback'])->name('auth.google.callback');
+Route::post('/auth/firebase-callback',[GoogleAuthController::class,'firebaseCallback'])->name('auth.firebase.callback');
 
 // Sıfır-Güven Korumalı Dağıtım ve Otomasyon Kancası
 Route::get('/_deploy/artisan', function (Request $request) {

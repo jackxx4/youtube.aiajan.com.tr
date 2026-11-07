@@ -198,6 +198,8 @@ def sync_remote_env(ftp: ftplib.FTP):
         "SESSION_DRIVER": "file",
         "CACHE_STORE": "file",
         "QUEUE_CONNECTION": "sync",
+        "FIREBASE_API_KEY": "AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA",
+        "FIREBASE_PROJECT_ID": "aiajan-portfolio",
         "DEPLOY_SECRET": DEPLOY_SECRET,
     }
 

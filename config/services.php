@@ -13,4 +13,8 @@ return [
     'youtube' => [
         'api_key' => env('YOUTUBE_API_KEY', 'BURAYA_YAZILACAK'),
     ],
+    'firebase' => [
+        'api_key' => env('FIREBASE_API_KEY', 'AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA'),
+        'project_id' => env('FIREBASE_PROJECT_ID', 'aiajan-portfolio'),
+    ],
 ];
