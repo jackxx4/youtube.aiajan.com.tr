@@ -7,8 +7,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 class ChannelController extends Controller {
- public function index(Request $request): View {
+ public function index(Request $request): View|RedirectResponse {
   $ids=session('available_youtube_channels',[]);
+  if(empty($ids)){
+   $active=$request->user()->activeChannelLink()->with('channel')->first();
+   if($active) return redirect()->route('dashboard')->with('status','Zaten bir kanalınız bağlı.');
+   return redirect()->route('auth.google')->withErrors(['google'=>'Kanal listesi için yeniden Google ile giriş yapın.']);
+  }
   $channels=YouTubeChannel::whereIn('youtube_channel_id',$ids)->orderBy('title')->get();
   $active=$request->user()->activeChannelLink()->with('channel')->first();
   return view('channels.select',compact('channels','active'));
