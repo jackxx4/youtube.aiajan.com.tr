@@ -30,9 +30,10 @@ class ChannelController extends Controller
                         $ids = $fetched->pluck('youtube_channel_id')->all();
                         session(['available_youtube_channels' => $ids]);
                         foreach ($fetched as $data) {
+                            $item = (array) $data;
                             YouTubeChannel::updateOrCreate(
-                                ['youtube_channel_id' => $data['youtube_channel_id']],
-                                collect($data)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
+                                ['youtube_channel_id' => $item['youtube_channel_id']],
+                                collect($item)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
                             );
                         }
                     }
