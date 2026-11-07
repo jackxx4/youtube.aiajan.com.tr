@@ -142,7 +142,11 @@
                 @if($isConnected)
                     <span style="padding:4px 10px;border-radius:6px;background:#e6f4ea;color:#137333;font-size:12px;font-weight:600;white-space:nowrap;">✓ Aktif</span>
                 @else
-                    <a href="{{ route('channels.select') }}" style="padding:4px 10px;border-radius:6px;background:var(--sand);color:var(--rust);font-size:12px;font-weight:600;white-space:nowrap;text-decoration:none;">Bağla</a>
+                    <form method="POST" action="{{ route('channels.store') }}" style="display:inline;">
+                        @csrf
+                        <input type="hidden" name="channel_id" value="{{ $oc->youtube_channel_id }}">
+                        <button type="submit" style="padding:4px 10px;border-radius:6px;background:var(--sand);color:var(--rust);font-size:12px;font-weight:600;white-space:nowrap;border:1px solid var(--rust);cursor:pointer;">Bağla</button>
+                    </form>
                 @endif
             </div>
             @endforeach

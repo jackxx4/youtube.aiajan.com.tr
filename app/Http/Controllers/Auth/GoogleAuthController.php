@@ -85,10 +85,9 @@ class GoogleAuthController extends Controller
                 session(['available_youtube_channels' => $available->pluck('youtube_channel_id')->all()]);
             }
 
-            $active = $user->activeChannelLink()->first();
-            return ($active && $active->started_at && $active->started_at->gt(now()->subDays(30)))
+            return $user->activeChannelLink()->exists()
                 ? redirect()->route('dashboard')
-                : redirect()->route('channels.select');
+                : redirect()->route('profile.me');
         } catch (Throwable $e) {
             report($e);
             return redirect()->route('login')->withErrors(['google' => 'Google girişi tamamlanamadı. OAuth ayarlarını ve YouTube kanal erişimini kontrol edin.']);
@@ -179,10 +178,9 @@ class GoogleAuthController extends Controller
                 session(['available_youtube_channels' => $available->pluck('youtube_channel_id')->all()]);
             }
 
-            $active = $user->activeChannelLink()->first();
-            $redirectUrl = ($active && $active->started_at && $active->started_at->gt(now()->subDays(30)))
+            $redirectUrl = $user->activeChannelLink()->exists()
                 ? route('dashboard')
-                : route('channels.select');
+                : route('profile.me');
 
             return response()->json([
                 'success' => true,

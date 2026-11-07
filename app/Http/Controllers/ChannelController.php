@@ -169,8 +169,10 @@ class ChannelController extends Controller
             ]);
 
             $available = session('available_youtube_channels', []);
-            if (!empty($available) && !in_array($data['channel_id'], $available, true)) {
-                abort(403, 'Seçilen kanal yetkili kanallarınız arasında bulunamadı.');
+            $ownedIds  = $user->google_channel_ids ?? [];
+            $authorised = array_unique(array_merge($available, $ownedIds));
+            if (!empty($authorised) && !in_array($data['channel_id'], $authorised, true)) {
+                abort(403, 'Seçilen kanal Google hesabınıza kayıtlı değil.');
             }
 
             $channel = YouTubeChannel::where('youtube_channel_id', $data['channel_id'])->firstOrFail();
