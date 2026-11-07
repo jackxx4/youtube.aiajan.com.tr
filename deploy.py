@@ -41,7 +41,7 @@ _env = {}
 _env.update(load_env_file(BASE_DIR / ".env"))
 _env.update(load_env_file(BASE_DIR / ".env.deploy"))
 
-FIRESTORE_PROJECT = _env.get("FIREBASE_PROJECT_ID", "aiajan-youtube")
+FIRESTORE_PROJECT = _env.get("FIREBASE_PROJECT_ID", "aiajan-portfolio")
 
 
 def get_current_version() -> str:
