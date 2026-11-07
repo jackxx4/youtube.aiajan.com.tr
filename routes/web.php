@@ -55,5 +55,7 @@ Route::middleware('auth')->group(function(){
  Route::get('/kesfet/videolar',[DiscoveryController::class,'videos'])->name('discovery.videos');
  Route::get('/vitrenim',[VideoShowcaseController::class,'index'])->name('videos.showcase');
  Route::post('/vitrenim',[VideoShowcaseController::class,'update'])->name('videos.showcase.update');
+ Route::post('/vitrenim/senkronize',[VideoShowcaseController::class,'syncChannelVideos'])->name('videos.showcase.sync');
+ Route::post('/vitrenim/video-ekle',[VideoShowcaseController::class,'addVideoByUrl'])->name('videos.showcase.add_url');
  Route::prefix('yonetim')->name('admin.')->middleware('admin')->group(function(){Route::get('/',AdminDashboardController::class)->name('dashboard');});
 });
