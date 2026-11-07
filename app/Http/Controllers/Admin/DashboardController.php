@@ -34,19 +34,13 @@ class DashboardController extends Controller
             ->where('action', 'contact_form_submitted')
             ->count();
 
-        // 2. Son Kullanıcılar (15 adet)
-        $recentUsers = User::with('activeChannelLink.channel')
-            ->latest('id')
-            ->limit(15)
-            ->get();
-
-        // 3. Son YouTube Kanalları (10 adet)
+        // 2. Son Eklenen YouTube Kanalları (10 adet)
         $recentChannels = YouTubeChannel::withCount('videos')
             ->latest('last_synced_at')
             ->limit(10)
             ->get();
 
-        // 4. Son İletişim & Destek Talepleri (audit_logs üzerinden)
+        // 3. Son İletişim & Destek Talepleri (audit_logs üzerinden)
         $recentMessages = DB::table('audit_logs')
             ->where('action', 'contact_form_submitted')
             ->latest('id')
@@ -65,9 +59,9 @@ class DashboardController extends Controller
                 ];
             });
 
-        // 5. Sistem & Telemetri
+        // 4. Sistem & Telemetri
         $systemInfo = [
-            'version'     => config('version.current', '1.4.9'),
+            'version'     => config('version.current', '1.5.9'),
             'release'     => config('version.release_name', 'YouTube Keşif'),
             'php_version' => PHP_VERSION,
             'laravel_ver' => app()->version(),
@@ -85,11 +79,43 @@ class DashboardController extends Controller
             'followsToday',
             'activeSupporters',
             'totalMessages',
-            'recentUsers',
             'recentChannels',
             'recentMessages',
             'systemInfo'
         ));
+    }
+
+    /**
+     * Ayrı Kullanıcı Yönetimi Sayfası
+     */
+    public function users(Request $request): View
+    {
+        $search = trim((string) $request->input('search', ''));
+        $role = $request->input('role');
+        $status = $request->input('status');
+
+        $query = User::with('activeChannelLink.channel')->latest('id');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('username', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if (in_array($role, ['admin', 'user'], true)) {
+            $query->where('role', $role);
+        }
+
+        if (in_array($status, ['active', 'suspended'], true)) {
+            $query->where('status', $status);
+        }
+
+        $users = $query->paginate(20)->withQueryString();
+        $totalUsers = User::count();
+
+        return view('admin.users', compact('users', 'search', 'role', 'status', 'totalUsers'));
     }
 
     /**
@@ -122,6 +148,32 @@ class DashboardController extends Controller
         $user->update(['status' => $newStatus]);
 
         return back()->with('status', "{$user->name} kullanıcısının durumu '{$newStatus}' olarak güncellendi.");
+    }
+
+    /**
+     * Üyeyi ve ilişkili tüm verilerini kalıcı olarak siler.
+     */
+    public function destroyUser(Request $request, User $user): RedirectResponse
+    {
+        $currentAdmin = $request->user();
+        if ($currentAdmin->id === $user->id) {
+            return back()->withErrors(['admin' => 'Kendi yönetici hesabınızı silemezsiniz.']);
+        }
+
+        $userName = $user->name;
+
+        DB::transaction(function () use ($user) {
+            DB::table('user_video_selections')->where('user_id', $user->id)->delete();
+            DB::table('platform_follows')->where('follower_user_id', $user->id)->orWhere('followed_user_id', $user->id)->delete();
+            DB::table('user_channel_links')->where('user_id', $user->id)->delete();
+            DB::table('youtube_oauth_tokens')->where('user_id', $user->id)->delete();
+            DB::table('supporter_statuses')->where('user_id', $user->id)->delete();
+            DB::table('user_impressions')->where('viewer_user_id', $user->id)->orWhere('shown_user_id', $user->id)->delete();
+            DB::table('user_blocks')->where('blocker_user_id', $user->id)->orWhere('blocked_user_id', $user->id)->delete();
+            $user->delete();
+        });
+
+        return back()->with('status', "“{$userName}” kullanıcısı ve platformdaki tüm bağlı verileri başarıyla silindi.");
     }
 
     /**

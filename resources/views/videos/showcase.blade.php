@@ -2,207 +2,159 @@
 @section('title', 'Video Vitrinim')
 @section('content')
 <div style="max-width:960px;margin:0 auto;">
-    <p class="eyebrow">Kanal Yönetimi</p>
-    <h1 class="h1">Video Vitrinim</h1>
-    <p class="lead">Kanalınızın <strong>son 10 videosu</strong> arasından dilediğiniz <strong>1, 2 veya en fazla 3 videoyu</strong> seçerek vitrininizde sergileyebilirsiniz. Seçtiğiniz videolar keşif akışında diğer üreticilere önerilir.</p>
-
-    <!-- Ayrı Senkronizasyon ve Vitrin Sıfırlama Formları (HTML5 form attribute ile bağlanır) -->
-    <form method="POST" action="{{ route('videos.showcase.sync') }}" id="syncForm" style="display:none;">
-        @csrf
-    </form>
-    <form method="POST" action="{{ route('videos.showcase.clear') }}" id="clearForm" style="display:none;" onsubmit="return confirm('Vitrininizdeki tüm videoları kaldırmak istediğinize emin misiniz?');">
-        @csrf
-    </form>
-
-    <!-- Tekil Video Kaldırma Formları -->
-    @foreach($videos as $vForm)
-        <form method="POST" action="{{ route('videos.showcase.remove', $vForm->id) }}" id="removeForm{{ $vForm->id }}" style="display:none;" onsubmit="return confirm('“{{ addslashes($vForm->title) }}” videosunu vitrinden kaldırmak istediğinize emin misiniz?');">
-            @csrf
-            @method('DELETE')
-        </form>
-    @endforeach
-
-    @if($videos->isEmpty())
-        <!-- Henüz Video Çekilmemişse Aksiyon Kartı -->
-        <div class="card" style="margin-top:24px;padding:36px 24px;text-align:center;background:linear-gradient(to right,#fffdf8,#fcf6ee);border:2px dashed #d6bca8;">
-            <div style="font-size:48px;margin-bottom:12px;">🎬</div>
-            <h2 style="font:28px 'DM Serif Display',serif;margin:0 0 8px;color:var(--wine);">Kanal Videolarınız Henüz Yüklenmedi</h2>
-            <p class="muted" style="max-width:540px;margin:0 auto 24px;line-height:1.6;">
-                Bağlı YouTube kanalınızdan (<strong>{{ $channel->title }}</strong>) son yüklenen videoları şimdi çekebilir veya öne çıkarmak istediğiniz bir video linkini doğrudan yapıştırabilirsiniz.
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px;">
+        <div>
+            <p class="eyebrow">Kanal Yönetimi</p>
+            <h1 class="h1" style="margin:4px 0 6px;">Video Vitrinim</h1>
+            <p class="lead" style="margin-bottom:0;">
+                Vitrininiz, topluluk keşif akışında ve profilinizde öne çıkan <strong>en fazla 3 videonuzdan</strong> oluşur.
             </p>
+        </div>
+        <div>
+            <a href="{{ route('dashboard') }}" class="btn secondary" style="padding:10px 16px;font-size:13px;">
+                ← Genel Bakış'a Dön
+            </a>
+        </div>
+    </div>
 
-            <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:28px;">
-                <!-- Otomatik Senkronizasyon Butonu -->
-                <form method="POST" action="{{ route('videos.showcase.sync') }}" style="display:inline;">
-                    @csrf
-                    <button class="btn" type="submit" style="padding:14px 28px;font-size:15px;display:inline-flex;align-items:center;gap:8px;">
-                        <span>🔄 Videolarımı Şimdi Tara ve Getir</span>
-                    </button>
-                </form>
-                
-                <a href="{{ route('dashboard') }}" class="btn secondary" style="padding:14px 22px;font-size:15px;">
-                    Şimdilik Atla
-                </a>
-            </div>
-
-            <!-- Manuel Video Ekleme Kutusu -->
-            <div style="max-width:500px;margin:0 auto;text-align:left;border-top:1px solid var(--line);padding-top:20px;">
-                <form method="POST" action="{{ route('videos.showcase.add_url') }}">
-                    @csrf
-                    <label for="video_url" style="display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:var(--ink);">
-                        Veya Belirli Bir Video Bağlantısı Ekleyin:
-                    </label>
-                    <div style="display:flex;gap:8px;">
-                        <input type="text" class="field" id="video_url" name="video_url" placeholder="https://www.youtube.com/watch?v=..." required style="flex:1;">
-                        <button class="btn" type="submit" style="white-space:nowrap;padding:12px 18px;">Ekle</button>
-                    </div>
-                </form>
+    <!-- Bağlı Kanal Bilgi Şeridi -->
+    <div class="card" style="margin:20px 0 28px;padding:14px 20px;background:#fbf7f2;border-left:4px solid var(--rust);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            @if($channel->thumbnail_url)
+                <img src="{{ $channel->thumbnail_url }}" alt="{{ $channel->title }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+            @else
+                <div style="width:36px;height:36px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--wine);">
+                    {{ mb_substr($channel->title, 0, 1) }}
+                </div>
+            @endif
+            <div>
+                <strong>Bağlı Kanal:</strong> {{ $channel->title }}
+                <span class="muted" style="margin-left:6px;">({{ $channel->custom_url ?: ('ID: ' . $channel->youtube_channel_id) }})</span>
             </div>
         </div>
-    @else
-        <!-- Video Seçim Formu -->
-        <form method="POST" action="{{ route('videos.showcase.update') }}" id="showcaseForm">
-            @csrf
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:28px 0 16px;">
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    <span id="selCount" style="font-weight:700;font-size:15px;color:var(--rust);">
-                        {{ count($selectedIds) }}/3 video seçili
-                    </span>
-                    <span id="selHint" class="muted" style="font-size:13px;">
-                        @if(count($selectedIds) === 0)
-                            (Seçim yapılmadı — kaydedilirse vitrin boşaltılır)
-                        @elseif(count($selectedIds) === 3)
-                            (Maksimum vitrin sınırına ulaştınız: 3/3)
-                        @else
-                            ({{ 3 - count($selectedIds) }} video daha seçebilirsiniz)
-                        @endif
-                    </span>
-                </div>
-                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                    <button type="submit" form="syncForm" style="background:transparent;border:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;padding:6px 0;">
-                        🔄 Son Videoları Yeniden Tara
+        <div style="display:flex;gap:10px;align-items:center;">
+            <span style="font-weight:700;color:var(--wine);background:var(--sand);padding:4px 10px;border-radius:12px;font-size:12px;">
+                {{ $showcaseVideos->count() }} / 3 Slot Dolu
+            </span>
+            @if($showcaseVideos->isNotEmpty())
+                <form method="POST" action="{{ route('videos.showcase.clear') }}" onsubmit="return confirm('Vitrininizdeki tüm videoları kaldırmak istediğinize emin misiniz?');" style="display:inline;">
+                    @csrf
+                    <button type="submit" style="background:transparent;border:none;color:#c93b2b;font-size:12px;text-decoration:underline;cursor:pointer;padding:4px 0;">
+                        🗑️ Tümünü Temizle
                     </button>
-                    @if(count($selectedIds) > 0)
-                        <button type="submit" form="clearForm" style="background:transparent;border:none;color:#c93b2b;font-size:13px;text-decoration:underline;cursor:pointer;padding:6px 0;">
-                            🗑️ Vitrini Sıfırla
-                        </button>
-                    @endif
-                    <button class="btn" type="submit" id="saveShowcaseBtn">{{ count($selectedIds) === 0 ? 'Vitrini Boşalt ve Kaydet' : 'Vitrini Kaydet' }}</button>
-                </div>
-            </div>
+                </form>
+            @endif
+        </div>
+    </div>
 
-            <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;">
-                @foreach($videos as $video)
-                @php $checked = in_array($video->id, $selectedIds, true); @endphp
-                <div class="video-card-container" style="display:flex;flex-direction:column;border-radius:14px;border:2px solid {{ $checked ? 'var(--rust)' : 'var(--line)' }};background:var(--cream);overflow:hidden;transition:border-color .15s,box-shadow .15s;">
-                    <label for="v{{ $video->id }}" class="video-card {{ $checked ? 'selected' : '' }}" style="cursor:pointer;display:block;flex:1;">
-                        <div style="position:relative;">
-                            @if($video->thumbnail_url)
-                                <img src="{{ $video->thumbnail_url }}" alt="{{ $video->title }}" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;">
-                            @else
-                                <div style="width:100%;aspect-ratio:16/9;background:var(--sand);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:32px;">▶</div>
-                            @endif
-                            <div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);border-radius:6px;padding:4px;line-height:1;">
-                                <input type="checkbox"
-                                    name="video_ids[]"
-                                    id="v{{ $video->id }}"
-                                    value="{{ $video->id }}"
-                                    {{ $checked ? 'checked' : '' }}
-                                    style="width:20px;height:20px;accent-color:var(--rust);cursor:pointer;display:block;">
+    <!-- 3 VİTRİN SLOTU (KARTLAR) -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <h2 style="font:22px 'DM Serif Display',serif;margin:0;color:var(--wine);">Vitrin Slotları (Maks. 3 Video)</h2>
+        <span class="muted" style="font-size:13px;">Toplulukta bu 3 video öne çıkarılır</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:20px;margin-bottom:36px;">
+        @for($slot = 0; $slot < 3; $slot++)
+            @php $v = $showcaseVideos->get($slot); @endphp
+            @if($v)
+                <!-- Dolu Slot -->
+                <div class="card" style="padding:0;overflow:hidden;border:2px solid var(--rust);border-radius:14px;display:flex;flex-direction:column;box-shadow:0 4px 16px rgba(173,101,72,0.12);">
+                    <div style="position:relative;width:100%;aspect-ratio:16/9;background:#1a1412;overflow:hidden;">
+                        @if($v->thumbnail_url)
+                            <img src="{{ $v->thumbnail_url }}" alt="{{ $v->title }}" style="width:100%;height:100%;object-fit:cover;display:block;">
+                        @else
+                            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;">▶</div>
+                        @endif
+                        <span style="position:absolute;top:10px;left:10px;background:var(--rust);color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+                            ⭐ Slot {{ $slot + 1 }} · Yayında
+                        </span>
+                    </div>
+
+                    <div style="padding:16px;flex:1;display:flex;flex-direction:column;justify-content:space-between;">
+                        <div>
+                            <h3 style="font-size:14px;font-weight:600;line-height:1.45;color:var(--wine);margin:0 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;" title="{{ $v->title }}">
+                                {{ $v->title }}
+                            </h3>
+                            <div class="muted" style="font-size:12px;margin-bottom:14px;">
+                                YouTube ID: <code>{{ $v->youtube_video_id }}</code>
                             </div>
                         </div>
-                        <div style="padding:14px;">
-                            <div style="font-weight:600;font-size:14px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{{ $video->title }}</div>
-                            @if($video->published_at)
-                                <div class="muted" style="margin-top:6px;font-size:12px;">{{ $video->published_at->diffForHumans() }}</div>
-                            @endif
-                        </div>
-                    </label>
 
-                    @if($checked)
-                        <div style="padding:0 14px 14px;border-top:1px dashed var(--line);background:#fff9f8;">
-                            <button type="submit" form="removeForm{{ $video->id }}" class="btn secondary" style="width:100%;padding:7px 10px;font-size:12px;color:#c93b2b;background:#fff5f3;border-color:#f5c6cb;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;" title="Bu videoyu doğrudan vitrinden kaldır">
-                                <span>✕ Vitrinden Kaldır</span>
-                            </button>
+                        <div style="display:flex;gap:8px;align-items:center;padding-top:12px;border-top:1px solid var(--line);">
+                            <a href="https://www.youtube.com/watch?v={{ $v->youtube_video_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="flex:1;padding:8px 10px;font-size:12px;text-align:center;">
+                                YouTube'da Aç ↗
+                            </a>
+                            <form method="POST" action="{{ route('videos.showcase.remove', $v->id) }}" onsubmit="return confirm('“{{ addslashes($v->title) }}” videosunu vitrinden kaldırmak istediğinize emin misiniz?');" style="margin:0;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn secondary" style="padding:8px 12px;font-size:12px;color:#c93b2b;background:#fff5f3;border-color:#f5c6cb;cursor:pointer;" title="Vitrinden Kaldır">
+                                    ✕ Kaldır
+                                </button>
+                            </form>
                         </div>
-                    @endif
+                    </div>
                 </div>
-                @endforeach
-            </div>
+            @else
+                <!-- Boş Slot -->
+                <div class="card" style="border:2px dashed #d6bca8;border-radius:14px;background:#fcfbf8;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:36px 20px;min-height:260px;">
+                    <div style="width:48px;height:48px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--muted);margin-bottom:12px;">
+                        ＋
+                    </div>
+                    <div style="font-weight:700;font-size:15px;color:var(--wine);margin-bottom:4px;">
+                        Slot {{ $slot + 1 }} Boş
+                    </div>
+                    <p class="muted" style="font-size:12px;margin:0;max-width:220px;line-height:1.5;">
+                        Aşağıdaki formdan video bağlantısı ekleyerek bu slotu doldurun.
+                    </p>
+                </div>
+            @endif
+        @endfor
+    </div>
 
-            <div style="margin-top:24px;display:flex;gap:12px;align-items:center;">
-                <button class="btn" type="submit" id="saveShowcaseBtn2">{{ count($selectedIds) === 0 ? 'Vitrini Boşalt ve Kaydet' : 'Vitrini Kaydet' }}</button>
-                <a href="{{ route('dashboard') }}" class="btn secondary">Panoya Dön</a>
-            </div>
-        </form>
+    <!-- VİDEO EKLEME FORMU -->
+    <div class="card" style="padding:26px 30px;background:var(--cream);border:1px solid var(--line);border-radius:16px;">
+        <div style="display:flex;align-items:flex-start;gap:14px;">
+            <div style="font-size:32px;line-height:1;">🔗</div>
+            <div style="flex:1;">
+                <div class="eyebrow" style="color:var(--rust);">Vitrine Yeni Video Ekle</div>
+                <h3 style="font:22px 'DM Serif Display',serif;margin:4px 0 8px;color:var(--wine);">YouTube Video Bağlantısı ile Ekle</h3>
+                <p class="muted" style="margin-bottom:18px;font-size:13px;line-height:1.6;">
+                    Bağlı kanalınıza (<strong>{{ $channel->title }}</strong>) ait öne çıkarmak istediğiniz videonun bağlantısını yapıştırın. Sistem videonun kanalınıza ait olduğunu doğrulayacak ve vitrininize yerleştirecektir.
+                </p>
 
-        <!-- Ekstra Video Ekleme Bölümü -->
-        <div class="card" style="margin-top:32px;padding:20px 24px;border-top:2px solid var(--line);">
-            <div class="eyebrow">Listede Olmayan Bir Video Ekle</div>
-            <h3 style="font:20px 'DM Serif Display',serif;margin:4px 0 8px;">Bağlantı ile Video Ekle</h3>
-            <p class="muted" style="margin-bottom:14px;font-size:13px;">
-                Kanalınızdaki belirli bir videonun linkini yapıştırarak anında vitrininize dahil edebilirsiniz.
-            </p>
-            <form method="POST" action="{{ route('videos.showcase.add_url') }}" style="display:flex;gap:10px;flex-wrap:wrap;">
-                @csrf
-                <input type="text" class="field" name="video_url" placeholder="https://www.youtube.com/watch?v=..." required style="flex:1;min-width:240px;">
-                <button class="btn secondary" type="submit" style="white-space:nowrap;padding:12px 20px;">Videoyu Ekle</button>
-            </form>
+                @if($showcaseVideos->count() >= 3)
+                    <div class="alert" style="margin:0 0 16px;background:#fff8e1;color:#8d6e63;border:1px solid #ffe082;font-size:13px;">
+                        ⚠️ Vitrininiz tamamen dolu (3/3). Yeni bir video eklemek için önce yukarıdaki slotlardan birini <strong>“✕ Kaldır”</strong> butonuyla boşaltmalısınız.
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('videos.showcase.add_url') }}" style="display:flex;gap:10px;flex-wrap:wrap;">
+                    @csrf
+                    <input type="text"
+                        name="video_url"
+                        class="field"
+                        placeholder="Örn: https://www.youtube.com/watch?v=..."
+                        value="{{ old('video_url') }}"
+                        required
+                        {{ $showcaseVideos->count() >= 3 ? 'disabled' : '' }}
+                        style="flex:1;min-width:260px;margin:0;">
+                    <button type="submit"
+                        class="btn"
+                        {{ $showcaseVideos->count() >= 3 ? 'disabled' : '' }}
+                        style="white-space:nowrap;padding:12px 24px;font-size:14px;">
+                        <span>＋ Vitrine Ekle</span>
+                    </button>
+                </form>
+
+                <div style="margin-top:12px;font-size:12px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;">
+                    <span>✓ Normal (yatay) videolar kabul edilir</span>
+                    <span>•</span>
+                    <span>✗ YouTube Shorts videoları kabul edilmez</span>
+                    <span>•</span>
+                    <span>✓ En fazla 3 video sergilenebilir</span>
+                </div>
+            </div>
         </div>
-
-        <script>
-        (function(){
-            const MAX = 3;
-            const form = document.getElementById('showcaseForm');
-            if(!form) return;
-            const countEl = document.getElementById('selCount');
-            const hintEl = document.getElementById('selHint');
-            const saveBtns = [document.getElementById('saveShowcaseBtn'), document.getElementById('saveShowcaseBtn2')];
-            const boxes = form.querySelectorAll('input[type=checkbox]');
-
-            function update(){
-                const checked = form.querySelectorAll('input[type=checkbox]:checked');
-                const n = checked.length;
-                countEl.textContent = n + '/3 video seçili';
-                countEl.style.color = n === MAX ? 'var(--wine)' : 'var(--rust)';
-
-                if(hintEl) {
-                    if (n === 0) {
-                        hintEl.textContent = '(Seçim yapılmadı — kaydedilirse vitrin boşaltılır)';
-                    } else if (n === MAX) {
-                        hintEl.textContent = '(Maksimum vitrin sınırına ulaştınız: 3/3)';
-                    } else {
-                        hintEl.textContent = '(' + (MAX - n) + ' video daha seçebilirsiniz)';
-                    }
-                }
-
-                saveBtns.forEach(btn => {
-                    if (btn) {
-                        btn.disabled = (n > MAX);
-                        btn.textContent = (n === 0 ? 'Vitrini Boşalt ve Kaydet' : 'Vitrini Kaydet (' + n + '/3)');
-                    }
-                });
-
-                boxes.forEach(cb => {
-                    const card = cb.closest('.video-card-container') || cb.closest('label');
-                    if(card){
-                        if(cb.checked){
-                            card.style.borderColor = 'var(--rust)';
-                            card.style.boxShadow = '0 0 0 3px rgba(173,101,72,.18)';
-                        } else {
-                            card.style.borderColor = 'var(--line)';
-                            card.style.boxShadow = '';
-                            card.style.opacity = cb.disabled ? '0.5' : '1';
-                        }
-                    }
-                    if(!cb.checked) cb.disabled = (n >= MAX);
-                });
-            }
-
-            boxes.forEach(cb => cb.addEventListener('change', update));
-            update();
-        })();
-        </script>
-    @endif
+    </div>
 </div>
 @endsection

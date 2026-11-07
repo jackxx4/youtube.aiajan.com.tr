@@ -18,21 +18,19 @@ class VideoShowcaseController extends Controller
 
         if (!$channel) {
             return redirect()->route('channels.select')
-                ->withErrors(['channel' => 'Video seçimi için önce bir kanal bağlamalısınız.']);
+                ->withErrors(['channel' => 'Video vitrini için önce bir YouTube kanalı bağlamalısınız.']);
         }
 
-        // Kanalın en son 10 videosu listelenir
-        $videos = Video::where('youtube_channel_id', $channel->id)
-            ->where('availability', 'available')
-            ->latest('published_at')
-            ->limit(10)
-            ->get();
-
+        // Yalnızca kullanıcının vitrine seçtiği en fazla 3 video getirilir (bağlı kanal videoları listelenmez)
         $selectedIds = UserVideoSelection::where('user_id', $user->id)
             ->pluck('video_id')
             ->all();
 
-        return view('videos.showcase', compact('videos', 'selectedIds', 'channel'));
+        $showcaseVideos = Video::whereIn('id', $selectedIds)
+            ->where('availability', 'available')
+            ->get();
+
+        return view('videos.showcase', compact('showcaseVideos', 'selectedIds', 'channel'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -55,22 +53,7 @@ class VideoShowcaseController extends Controller
         if (empty($ids)) {
             UserVideoSelection::where('user_id', $user->id)->delete();
             return redirect()->route('videos.showcase')
-                ->with('status', 'Vitrininiz boşaltıldı. Dilediğiniz zaman yeni videolar seçebilirsiniz.');
-        }
-
-        // Kanalın son 10 videosu arasından seçim yapıldığı doğrulanır
-        $allowedIds = Video::where('youtube_channel_id', $channel->id)
-            ->where('availability', 'available')
-            ->latest('published_at')
-            ->limit(10)
-            ->pluck('id')
-            ->map(fn($id) => (int) $id)
-            ->all();
-
-        foreach ($ids as $selectedId) {
-            if (!in_array($selectedId, $allowedIds, true)) {
-                return back()->withErrors(['video_ids' => 'Yalnızca kanalınızın son 10 videosu arasından seçim yapabilirsiniz.']);
-            }
+                ->with('status', 'Vitrininiz boşaltıldı. Dilediğiniz zaman yeni videolar ekleyebilirsiniz.');
         }
 
         DB::transaction(function () use ($user, $ids) {
@@ -81,7 +64,7 @@ class VideoShowcaseController extends Controller
         });
 
         return redirect()->route('videos.showcase')
-            ->with('status', count($ids) . ' video vitrininize başarıyla kaydedildi! (1-3 video hakkınızdan ' . count($ids) . ' tanesini kullandınız)');
+            ->with('status', count($ids) . ' video vitrininize kaydedildi! (3/' . count($ids) . ')');
     }
 
     /**
@@ -141,85 +124,6 @@ class VideoShowcaseController extends Controller
     }
 
     /**
-     * Kanalın açık YouTube sayfalarından videolarını otomatik tarayıp çeker.
-     */
-    public function syncChannelVideos(Request $request): RedirectResponse
-    {
-        $user = $request->user();
-        $channel = $user->activeChannelLink?->channel;
-
-        if (!$channel) {
-            return back()->withErrors(['error' => 'Bağlı bir kanalınız bulunamadı.']);
-        }
-
-        $targetUrl = $channel->custom_url
-            ? 'https://www.youtube.com/' . ltrim($channel->custom_url, '/') . '/videos'
-            : 'https://www.youtube.com/channel/' . $channel->youtube_channel_id . '/videos';
-
-        $ch = curl_init($targetUrl);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            CURLOPT_TIMEOUT => 8,
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
-        $html = curl_exec($ch);
-
-        $videoIds = [];
-        if ($html) {
-            preg_match_all('/"videoId":"([a-zA-Z0-9_-]{11})"/', $html, $matches);
-            // Shorts video ID'lerini tespit edip listeden çıkar
-            preg_match_all('#/shorts/([a-zA-Z0-9_-]{11})#', $html, $shortsMatches);
-            $shortsIds = array_flip($shortsMatches[1] ?? []);
-            if (!empty($matches[1])) {
-                $videoIds = array_values(array_filter(
-                    array_unique($matches[1]),
-                    fn($id) => !isset($shortsIds[$id])
-                ));
-            }
-        }
-
-        $added = 0;
-        foreach (array_slice($videoIds, 0, 12) as $vid) {
-            $existing = Video::where('youtube_video_id', $vid)->first();
-            if ($existing) {
-                continue;
-            }
-
-            // OEmbed ile başlık ve kapak görselini çek
-            $oembedUrl = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' . $vid . '&format=json';
-            $chOe = curl_init($oembedUrl);
-            curl_setopt_array($chOe, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 6,
-                CURLOPT_SSL_VERIFYPEER => true,
-            ]);
-            $oembedRaw = curl_exec($chOe);
-            $meta = $oembedRaw ? json_decode($oembedRaw, true) : null;
-
-            Video::create([
-                'youtube_video_id'   => $vid,
-                'youtube_channel_id' => $channel->id,
-                'title'              => $meta['title'] ?? ('Video ' . $vid),
-                'thumbnail_url'      => $meta['thumbnail_url'] ?? ('https://i.ytimg.com/vi/' . $vid . '/hqdefault.jpg'),
-                'published_at'       => now(),
-                'availability'       => 'available',
-                'last_checked_at'    => now(),
-            ]);
-            $added++;
-        }
-
-        if ($added > 0) {
-            return redirect()->route('videos.showcase')
-                ->with('status', $added . ' adet video başarıyla senkronize edildi! Şimdi dilediğiniz videoları vitrininize seçebilirsiniz.');
-        }
-
-        return redirect()->route('videos.showcase')
-            ->withErrors(['error' => 'Kanalınızdan otomatik video bulunamadı. Aşağıdaki formdan video linkinizi doğrudan yapıştırarak anında ekleyebilirsiniz.']);
-    }
-
-    /**
      * Link veya ID girilerek doğrudan video ekleme.
      */
     public function addVideoByUrl(Request $request): RedirectResponse
@@ -234,6 +138,11 @@ class VideoShowcaseController extends Controller
 
         if (!$channel) {
             return back()->withErrors(['video_url' => 'Bağlı bir kanalınız bulunamadı.']);
+        }
+
+        $currentCount = UserVideoSelection::where('user_id', $user->id)->count();
+        if ($currentCount >= 3) {
+            return back()->withErrors(['video_url' => 'Vitrininiz dolu (3/3). Yeni video eklemek için önce mevcut bir videoyu vitrinden kaldırın.'])->withInput();
         }
 
         // Shorts URL'ini reddet
@@ -258,31 +167,66 @@ class VideoShowcaseController extends Controller
             return back()->withErrors(['video_url' => 'Bu video başka bir kanala ait, ekleyemezsiniz.'])->withInput();
         }
 
-        $oembedUrl = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' . $videoId . '&format=json';
-        $ch = curl_init($oembedUrl);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 6,
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
-        $oembedRaw = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $title = 'Video ' . $videoId;
+        $thumb = 'https://i.ytimg.com/vi/' . $videoId . '/hqdefault.jpg';
+        $verifiedOwnership = false;
 
-        if (!$oembedRaw || $httpCode !== 200) {
-            return back()->withErrors(['video_url' => 'Video bilgileri alınamadı. Video herkese açık olmayabilir.'])->withInput();
+        // 1. YouTube Data API v3 ile kontrol (en kesin yöntem)
+        $apiKey = config('services.youtube.api_key') ?: env('YOUTUBE_API_KEY');
+        if ($apiKey) {
+            $apiUrl = "https://www.googleapis.com/youtube/v3/videos?part=snippet&id={$videoId}&key={$apiKey}";
+            $chApi = curl_init($apiUrl);
+            curl_setopt_array($chApi, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 6,
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            $apiRaw = curl_exec($chApi);
+            $apiCode = curl_getinfo($chApi, CURLINFO_HTTP_CODE);
+
+            if ($apiRaw && $apiCode === 200) {
+                $apiData = json_decode($apiRaw, true);
+                if (!empty($apiData['items'][0]['snippet'])) {
+                    $snippet = $apiData['items'][0]['snippet'];
+                    $apiChannelId = $snippet['channelId'] ?? null;
+                    if ($apiChannelId && $apiChannelId !== $channel->youtube_channel_id) {
+                        return back()->withErrors(['video_url' => 'Bu video bağlı YouTube kanalınıza ait görünmüyor. Yalnızca kendi kanalınızdaki videoları vitrine ekleyebilirsiniz.'])->withInput();
+                    }
+                    $verifiedOwnership = true;
+                    $title = $snippet['title'] ?? $title;
+                    $thumb = $snippet['thumbnails']['high']['url'] ?? ($snippet['thumbnails']['medium']['url'] ?? $thumb);
+                }
+            }
         }
 
-        $oembedData = json_decode($oembedRaw, true);
+        // 2. Eğer API ile doğrulanmadıysa oEmbed ile kontrol et
+        if (!$verifiedOwnership) {
+            $oembedUrl = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' . $videoId . '&format=json';
+            $ch = curl_init($oembedUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 6,
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            $oembedRaw = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        // oEmbed yazar adı ile kanal başlığını karşılaştır (sahiplik doğrulama)
-        $authorName = strtolower(trim($oembedData['author_name'] ?? ''));
-        $channelTitle = strtolower(trim($channel->title ?? ''));
-        if ($authorName && $channelTitle && $authorName !== $channelTitle) {
-            return back()->withErrors(['video_url' => 'Bu video kanalınıza ait görünmüyor. Yalnızca kendi kanalınızdaki videolar eklenebilir.'])->withInput();
+            if (!$oembedRaw || $httpCode !== 200) {
+                return back()->withErrors(['video_url' => 'Video bilgileri alınamadı. Video herkese açık olmayabilir veya bağlantı hatalı.'])->withInput();
+            }
+
+            $oembedData = json_decode($oembedRaw, true);
+            $authorName = mb_strtolower(trim($oembedData['author_name'] ?? ''));
+            $channelTitle = mb_strtolower(trim($channel->title ?? ''));
+
+            // Sahiplik karşılaştırması (isim benzerliği)
+            if ($authorName && $channelTitle && $authorName !== $channelTitle && !str_contains($authorName, $channelTitle) && !str_contains($channelTitle, $authorName)) {
+                return back()->withErrors(['video_url' => "Bu video '{$channel->title}' kanalına ait görünmüyor (Video sahibi: '{$oembedData['author_name']}')."])->withInput();
+            }
+
+            $title = $oembedData['title'] ?? $title;
+            $thumb = $oembedData['thumbnail_url'] ?? $thumb;
         }
-
-        $title = $oembedData['title'] ?? ('Video ' . $videoId);
-        $thumb = $oembedData['thumbnail_url'] ?? ('https://i.ytimg.com/vi/' . $videoId . '/hqdefault.jpg');
 
         $video = Video::updateOrCreate(
             ['youtube_video_id' => $videoId],
@@ -296,18 +240,12 @@ class VideoShowcaseController extends Controller
             ]
         );
 
-        $currentCount = UserVideoSelection::where('user_id', $user->id)->count();
-        if ($currentCount >= 3) {
-            return redirect()->route('videos.showcase')
-                ->with('status', 'Video kütüphanenize eklendi. Vitrininiz dolu (3/3), önce bir video çıkarın.');
-        }
-
         UserVideoSelection::firstOrCreate([
             'user_id'  => $user->id,
             'video_id' => $video->id,
         ]);
 
         return redirect()->route('videos.showcase')
-            ->with('status', 'Video başarıyla eklendi ve vitrininize kaydedildi!');
+            ->with('status', '“' . $title . '” videosu vitrininize eklendi! (' . ($currentCount + 1) . '/3)');
     }
 }

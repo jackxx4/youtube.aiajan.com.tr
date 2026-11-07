@@ -6,7 +6,7 @@
         <div>
             <div class="eyebrow" style="color:var(--rust);">Yönetici Kontrol Merkezi</div>
             <h1 class="h1" style="margin:4px 0 6px;">Platform Yönetimi</h1>
-            <p class="lead" style="margin-bottom:0;">Üyeleri, YouTube kanallarını, vitrin durumunu ve gelen destek taleplerini canlı izleyin ve yönetin.</p>
+            <p class="lead" style="margin-bottom:0;">Sistem telemetrisini, YouTube kanallarını, vitrin durumunu ve gelen destek taleplerini canlı izleyin.</p>
         </div>
         <div style="display:flex;gap:10px;align-items:center;">
             <form method="POST" action="{{ route('admin.clear_cache') }}" onsubmit="return confirm('Sistem önbelleklerini temizlemek istediğinize emin misiniz?');">
@@ -21,8 +21,18 @@
         </div>
     </div>
 
+    <!-- Yönetim Sekmeleri (Tabs) -->
+    <div style="display:flex;gap:8px;border-bottom:2px solid var(--line);margin:20px 0 24px;">
+        <a href="{{ route('admin.dashboard') }}" style="padding:10px 18px;font-weight:700;font-size:14px;color:var(--wine);border-bottom:3px solid var(--wine);margin-bottom:-2px;text-decoration:none;">
+            📊 Genel Bakış
+        </a>
+        <a href="{{ route('admin.users') }}" style="padding:10px 18px;font-weight:600;font-size:14px;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;text-decoration:none;">
+            👥 Üye Yönetimi ({{ $totalUsers }})
+        </a>
+    </div>
+
     <!-- Sistem ve Canlı Altyapı Barı -->
-    <div class="card" style="margin-top:20px;padding:14px 20px;background:#fbf7f2;border-left:4px solid var(--wine);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;">
+    <div class="card" style="padding:14px 20px;background:#fbf7f2;border-left:4px solid var(--wine);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;">
         <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
             <span><strong>Sürüm:</strong> v{{ $systemInfo['version'] }} ({{ $systemInfo['release'] }})</span>
             <span>•</span>
@@ -76,156 +86,76 @@
         </div>
     </div>
 
-    <!-- TABLO 1: Son Kayıt Olan Kullanıcılar -->
-    <section class="card" style="margin-top:32px;padding:24px;">
+    <!-- Hızlı Üye Yönetimi Çağrısı -->
+    <div class="card" style="margin-top:24px;background:linear-gradient(135deg, #fffdfa 0%, #f7efe5 100%);border:1px solid #e7d8ca;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+        <div>
+            <div class="eyebrow">Üye Yönetimi Modülü</div>
+            <h2 style="font:24px 'DM Serif Display',serif;margin:4px 0 6px;color:var(--wine);">Kayıtlı Kullanıcıları Yönetin ({{ $totalUsers }} Üye)</h2>
+            <p class="muted" style="margin:0;max-width:600px;font-size:13px;">
+                Tüm kayıtlı üyeleri arayın, rollerini (Admin/Üye) belirleyin, durumlarını askıya alın veya üyeleri kalıcı olarak silin.
+            </p>
+        </div>
+        <a href="{{ route('admin.users') }}" class="btn" style="padding:12px 24px;font-size:14px;white-space:nowrap;display:inline-flex;align-items:center;gap:8px;">
+            <span>👥 Üye Yönetimini Aç →</span>
+        </a>
+    </div>
+
+    <!-- TABLO: Son Eklenen YouTube Kanalları -->
+    <section class="card" style="margin-top:28px;padding:24px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px;">
             <div>
-                <div class="eyebrow">Üye Yönetimi</div>
-                <h2 style="font:22px 'DM Serif Display',serif;margin:2px 0 0;color:var(--wine);">Son Kayıt Olan Kullanıcılar (Son 15)</h2>
+                <div class="eyebrow">Kanal Veritabanı</div>
+                <h2 style="font:22px 'DM Serif Display',serif;margin:2px 0 0;color:var(--wine);">Son Bağlanan YouTube Kanalları</h2>
             </div>
-            <span class="muted" style="font-size:12px;">Toplam {{ $totalUsers }} üyeden son 15 kişi listeleniyor</span>
+            <span class="muted" style="font-size:12px;">Toplam {{ $totalChannels }} kanaldan son 10'u listeleniyor</span>
         </div>
 
         <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
                 <thead>
                     <tr style="border-bottom:2px solid var(--line);color:var(--muted);font-weight:600;">
-                        <th style="padding:10px 8px;">Kullanıcı</th>
-                        <th style="padding:10px 8px;">E-Posta</th>
-                        <th style="padding:10px 8px;">Bağlı Kanal</th>
-                        <th style="padding:10px 8px;">Rol</th>
-                        <th style="padding:10px 8px;">Durum</th>
-                        <th style="padding:10px 8px;">Kayıt Tarihi</th>
-                        <th style="padding:10px 8px;text-align:right;">İşlem</th>
+                        <th style="padding:10px 8px;">Kanal Adı</th>
+                        <th style="padding:10px 8px;">Kanal ID / URL</th>
+                        <th style="padding:10px 8px;">Kayıtlı Video</th>
+                        <th style="padding:10px 8px;">Son Senkronizasyon</th>
+                        <th style="padding:10px 8px;text-align:right;">Bağlantı</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($recentUsers as $u)
+                    @forelse($recentChannels as $ch)
                     <tr style="border-bottom:1px solid var(--line);">
                         <td style="padding:12px 8px;">
                             <div style="display:flex;align-items:center;gap:10px;">
-                                @if($u->avatar_url)
-                                    <img src="{{ $u->avatar_url }}" alt="{{ $u->name }}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                                @if($ch->thumbnail_url)
+                                    <img src="{{ $ch->thumbnail_url }}" alt="{{ $ch->title }}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                                 @else
                                     <div style="width:34px;height:34px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--wine);">
-                                        {{ strtoupper(mb_substr($u->name, 0, 1)) }}
+                                        {{ mb_substr($ch->title, 0, 1) }}
                                     </div>
                                 @endif
-                                <div>
-                                    <strong style="color:var(--wine);display:block;">{{ $u->name }}</strong>
-                                    <span class="muted" style="font-size:11px;">{{ '@' . $u->username }}</span>
-                                </div>
+                                <strong style="color:var(--wine);">{{ $ch->title }}</strong>
                             </div>
                         </td>
-                        <td style="padding:12px 8px;color:var(--ink);">{{ $u->email }}</td>
-                        <td style="padding:12px 8px;">
-                            @if($u->activeChannelLink?->channel)
-                                <span style="color:var(--rust);font-weight:600;">📺 {{ $u->activeChannelLink->channel->title }}</span>
-                            @else
-                                <span class="muted">—</span>
-                            @endif
+                        <td style="padding:12px 8px;color:var(--muted);font-family:monospace;font-size:12px;">
+                            {{ $ch->custom_url ? $ch->custom_url : $ch->youtube_channel_id }}
                         </td>
                         <td style="padding:12px 8px;">
-                            @if($u->role === 'admin')
-                                <span style="background:var(--wine);color:#fff;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;">YÖNETİCİ</span>
-                            @else
-                                <span style="background:var(--sand);color:var(--ink);padding:3px 8px;border-radius:12px;font-size:11px;">ÜYE</span>
-                            @endif
-                        </td>
-                        <td style="padding:12px 8px;">
-                            @if($u->status === 'active')
-                                <span style="color:#2d6a3f;font-weight:600;">● Aktif</span>
-                            @else
-                                <span style="color:#c93b2b;font-weight:600;">● Askıda</span>
-                            @endif
+                            <span style="background:var(--sand);padding:3px 8px;border-radius:10px;font-weight:600;font-size:11px;">
+                                {{ $ch->videos_count }} video
+                            </span>
                         </td>
                         <td style="padding:12px 8px;color:var(--muted);font-size:12px;">
-                            {{ $u->created_at?->format('d.m.Y H:i') ?? '—' }}
+                            {{ $ch->last_synced_at ? \Carbon\Carbon::parse($ch->last_synced_at)->diffForHumans() : '—' }}
                         </td>
                         <td style="padding:12px 8px;text-align:right;">
-                            @if(auth()->id() !== $u->id)
-                                <div style="display:inline-flex;gap:6px;">
-                                    <form method="POST" action="{{ route('admin.users.toggle_role', $u->id) }}">
-                                        @csrf
-                                        <button type="submit" class="btn secondary" style="padding:4px 8px;font-size:11px;" title="Rolü değiştir">
-                                            {{ $u->role === 'admin' ? 'Üye Yap' : 'Admin Yap' }}
-                                        </button>
-                                    </form>
-                                    <form method="POST" action="{{ route('admin.users.toggle_status', $u->id) }}">
-                                        @csrf
-                                        <button type="submit" class="btn secondary" style="padding:4px 8px;font-size:11px;color:{{ $u->status === 'active' ? '#c93b2b' : '#2d6a3f' }};" title="Durumu değiştir">
-                                            {{ $u->status === 'active' ? 'Askıya Al' : 'Aktifleştir' }}
-                                        </button>
-                                    </form>
-                                </div>
-                            @else
-                                <span class="muted" style="font-size:11px;">(Siz)</span>
-                            @endif
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="7" style="padding:20px;text-align:center;color:var(--muted);">Kayıtlı üye bulunamadı.</td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <!-- TABLO 2: Bağlı YouTube Kanalları -->
-    <section class="card" style="margin-top:32px;padding:24px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px;">
-            <div>
-                <div class="eyebrow">İçerik Havuzu</div>
-                <h2 style="font:22px 'DM Serif Display',serif;margin:2px 0 0;color:var(--wine);">Son Senkronize Edilen YouTube Kanalları (Son 10)</h2>
-            </div>
-            <span class="muted" style="font-size:12px;">Toplam {{ $totalChannels }} bağlı kanal</span>
-        </div>
-
-        <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
-                <thead>
-                    <tr style="border-bottom:2px solid var(--line);color:var(--muted);font-weight:600;">
-                        <th style="padding:10px 8px;">Kanal</th>
-                        <th style="padding:10px 8px;">Kanal ID / Bağlantı</th>
-                        <th style="padding:10px 8px;">Kayıtlı Video</th>
-                        <th style="padding:10px 8px;">Son Tarama</th>
-                        <th style="padding:10px 8px;text-align:right;">YouTube</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($recentChannels as $c)
-                    <tr style="border-bottom:1px solid var(--line);">
-                        <td style="padding:12px 8px;">
-                            <div style="display:flex;align-items:center;gap:10px;">
-                                @if($c->thumbnail_url)
-                                    <img src="{{ $c->thumbnail_url }}" alt="{{ $c->title }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
-                                @else
-                                    <div style="width:36px;height:36px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-weight:700;">📺</div>
-                                @endif
-                                <div>
-                                    <strong style="color:var(--wine);display:block;">{{ $c->title }}</strong>
-                                    @if($c->custom_url)
-                                        <span class="muted" style="font-size:11px;">{{ $c->custom_url }}</span>
-                                    @endif
-                                </div>
-                            </div>
-                        </td>
-                        <td style="padding:12px 8px;font-family:monospace;font-size:12px;color:var(--muted);">{{ $c->youtube_channel_id }}</td>
-                        <td style="padding:12px 8px;font-weight:600;">{{ $c->videos_count }} video</td>
-                        <td style="padding:12px 8px;color:var(--muted);font-size:12px;">
-                            {{ $c->last_synced_at?->diffForHumans() ?? '—' }}
-                        </td>
-                        <td style="padding:12px 8px;text-align:right;">
-                            <a href="https://www.youtube.com/channel/{{ $c->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="padding:4px 10px;font-size:11px;">
-                                Aç ↗
+                            <a href="https://www.youtube.com/{{ $ch->custom_url ? ltrim($ch->custom_url, '/') : 'channel/' . $ch->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="padding:4px 10px;font-size:11px;">
+                                YouTube ↗
                             </a>
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" style="padding:20px;text-align:center;color:var(--muted);">Kayıtlı YouTube kanalı bulunamadı.</td>
+                        <td colspan="5" style="padding:24px;text-align:center;color:var(--muted);">Henüz bağlı kanal bulunmuyor.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -233,54 +163,39 @@
         </div>
     </section>
 
-    <!-- TABLO 3: Gelen İletişim & Destek Talepleri -->
-    <section class="card" style="margin-top:32px;padding:24px;">
+    <!-- TABLO: Son Gelen İletişim & Destek Talepleri -->
+    <section class="card" style="margin-top:28px;padding:24px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px;">
             <div>
-                <div class="eyebrow">Destek Masası</div>
-                <h2 style="font:22px 'DM Serif Display',serif;margin:2px 0 0;color:var(--wine);">Gelen İletişim & Destek Mesajları (Son 10)</h2>
+                <div class="eyebrow">Geri Bildirim & İletişim</div>
+                <h2 style="font:22px 'DM Serif Display',serif;margin:2px 0 0;color:var(--wine);">Gelen Mesajlar ve Destek Talepleri</h2>
             </div>
-            <span class="muted" style="font-size:12px;">Toplam {{ $totalMessages }} başvuru</span>
+            <span class="muted" style="font-size:12px;">Toplam {{ $totalMessages }} mesajdan son 10'u</span>
         </div>
 
-        <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
-                <thead>
-                    <tr style="border-bottom:2px solid var(--line);color:var(--muted);font-weight:600;">
-                        <th style="padding:10px 8px;">Gönderen</th>
-                        <th style="padding:10px 8px;">E-Posta</th>
-                        <th style="padding:10px 8px;">Konu</th>
-                        <th style="padding:10px 8px;">Mesaj</th>
-                        <th style="padding:10px 8px;">Tarih</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($recentMessages as $m)
-                    <tr style="border-bottom:1px solid var(--line);">
-                        <td style="padding:12px 8px;font-weight:600;color:var(--wine);">{{ $m['name'] }}</td>
-                        <td style="padding:12px 8px;">
-                            <a href="mailto:{{ $m['email'] }}" style="color:var(--rust);text-decoration:underline;">{{ $m['email'] }}</a>
-                        </td>
-                        <td style="padding:12px 8px;">
-                            <span style="background:var(--sand);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;">
-                                {{ $m['subject'] }}
+        @if($recentMessages->isEmpty())
+            <p class="muted" style="margin:0;padding:12px 0;">Henüz iletişim formundan gönderilmiş bir mesaj bulunmuyor.</p>
+        @else
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                @foreach($recentMessages as $msg)
+                <div style="background:var(--sand);border-radius:10px;padding:14px 18px;border:1px solid var(--line);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                        <div>
+                            <strong style="color:var(--wine);font-size:14px;">{{ $msg['name'] }}</strong>
+                            <span class="muted" style="font-size:12px;">({{ $msg['email'] }})</span>
+                            <span style="background:var(--cream);border:1px solid var(--line);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-left:6px;color:var(--rust);">
+                                {{ $msg['subject'] }}
                             </span>
-                        </td>
-                        <td style="padding:12px 8px;max-width:340px;line-height:1.4;color:var(--ink);" title="{{ $m['message'] }}">
-                            {{ mb_strimwidth($m['message'], 0, 90, '...') }}
-                        </td>
-                        <td style="padding:12px 8px;color:var(--muted);font-size:12px;white-space:nowrap;">
-                            {{ $m['created_at'] }}
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="5" style="padding:20px;text-align:center;color:var(--muted);">Henüz iletilen destek talebi bulunmuyor.</td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                        </div>
+                        <div class="muted" style="font-size:11px;">
+                            {{ \Carbon\Carbon::parse($msg['created_at'])->format('d.m.Y H:i') }} (IP: {{ $msg['ip_hash'] }})
+                        </div>
+                    </div>
+                    <p style="margin:0;font-size:13px;line-height:1.5;color:var(--ink);white-space:pre-wrap;">{{ $msg['message'] }}</p>
+                </div>
+                @endforeach
+            </div>
+        @endif
     </section>
 </div>
 @endsection

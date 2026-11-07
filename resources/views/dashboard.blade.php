@@ -1,253 +1,316 @@
 @extends('layouts.app')
-@section('title', 'Genel Bakış')
+@section('title', 'Genel Bakış & Profilim')
 @section('content')
-<div class="eyebrow">Kontrol paneli</div>
-<h1 class="h1">Merhaba, {{ $user->name }}</h1>
-<p class="lead">Bugünkü keşif alanın hazır. Platform takipleri YouTube aboneliği değildir.</p>
+<div style="max-width:1040px;margin:0 auto;">
 
-@if(!$channel)
-    <div class="card" style="margin-top:24px;border-left:4px solid var(--rust);">
-        <h2 style="font:25px 'DM Serif Display',serif;margin:0 0 8px;">YouTube kanalını bağla</h2>
-        <p class="muted" style="margin-bottom:16px;">Profilini oluşturmak ve videolarını vitrinde sergilemek için Google hesabından bir kanal bağla.</p>
-        <a class="btn" href="{{ route('channels.select') }}">Kanal seç</a>
-    </div>
-@else
-    <!-- Üst İstatistik & Durum Kartları -->
-    <div class="grid" style="margin-top:22px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));">
-        <div class="card">
-            <div class="eyebrow">Bağlı kanal</div>
-            <div class="person" style="margin-top:12px;">
-                @if($channel->thumbnail_url)
-                    <img class="avatar" src="{{ $channel->thumbnail_url }}" alt="{{ $channel->title }}">
-                @else
-                    <div class="avatar" style="background:var(--sand);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--wine);">
-                        {{ mb_substr($channel->title, 0, 1) }}
-                    </div>
-                @endif
-                <div>
-                    <strong>{{ $channel->title }}</strong>
-                    <div class="muted">{{ '@' . $user->username }}</div>
-                    @if($canChangeChannel)
-                        <a class="muted" href="{{ route('channels.select') }}" style="font-size:12px;text-decoration:underline;margin-top:3px;display:inline-block;">Kanalı değiştir</a>
+    <!-- 1. ÜST PROFİL BANNER & KİMLİK KARTI -->
+    <div class="card" style="padding:0;overflow:hidden;border:1px solid var(--line);box-shadow:0 8px 30px rgba(0,0,0,0.04);margin-bottom:24px;">
+        <!-- Banner Arka Planı -->
+        <div style="height:140px;background:linear-gradient(135deg,#56362f 0%,#2e1b17 50%,#7a4537 100%);position:relative;">
+            <div style="position:absolute;right:20px;bottom:12px;color:rgba(255,255,255,0.7);font-size:12px;font-weight:500;">
+                aiajan.com.tr topluluğu
+            </div>
+        </div>
+
+        <!-- Profil Bilgileri & Avatar -->
+        <div style="padding:0 28px 24px;position:relative;">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-top:-50px;margin-bottom:16px;">
+                <!-- Avatar -->
+                <div style="position:relative;">
+                    @if($channel?->thumbnail_url)
+                        <img src="{{ $channel->thumbnail_url }}" alt="{{ $user->name }}" style="width:105px;height:105px;border-radius:50%;object-fit:cover;border:4px solid var(--cream);box-shadow:0 6px 18px rgba(0,0,0,0.15);background:var(--sand);">
+                    @elseif($user->avatar_url)
+                        <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" style="width:105px;height:105px;border-radius:50%;object-fit:cover;border:4px solid var(--cream);box-shadow:0 6px 18px rgba(0,0,0,0.15);background:var(--sand);">
+                    @else
+                        <div style="width:105px;height:105px;border-radius:50%;border:4px solid var(--cream);box-shadow:0 6px 18px rgba(0,0,0,0.15);background:var(--wine);color:#fff;display:flex;align-items:center;justify-content:center;font:700 36px 'DM Serif Display';">
+                            {{ strtoupper(mb_substr($user->name, 0, 1)) }}
+                        </div>
+                    @endif
+                    @if($channel)
+                        <span title="YouTube Kanalı Doğrulandı" style="position:absolute;bottom:4px;right:4px;background:#e52d27;color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid var(--cream);box-shadow:0 2px 6px rgba(0,0,0,0.2);">▶</span>
+                    @endif
+                </div>
+
+                <!-- Aksiyon Butonları -->
+                <div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
+                    <a href="{{ route('channels.select') }}" class="btn secondary" style="padding:9px 16px;font-size:13px;">
+                        {{ $channel ? '⚙️ Kanalı Değiştir' : '➕ Kanal Bağla' }}
+                    </a>
+                    <a href="{{ route('videos.showcase') }}" class="btn" style="padding:9px 16px;font-size:13px;background:var(--wine);">
+                        ✨ Video Vitrinim
+                    </a>
+                    <form method="post" action="{{ route('logout') }}" style="display:inline;">
+                        @csrf
+                        <button class="btn secondary" type="submit" style="padding:9px 14px;font-size:13px;background:transparent;border:1px solid var(--line);">Çıkış</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Kullanıcı Başlığı ve Rozetler -->
+            <div>
+                <h1 style="font:34px 'DM Serif Display',serif;margin:0 0 4px;color:var(--ink);">{{ $user->name }}</h1>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin-bottom:14px;">
+                    <span style="font-weight:600;color:var(--rust);">{{ '@' . $user->username }}</span>
+                    <span>·</span>
+                    <span>Katılım: {{ $user->created_at?->translatedFormat('F Y') ?? '2026' }}</span>
+                </div>
+
+                <!-- Rozetler -->
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    @if($user->role === 'admin')
+                        <span style="padding:4px 10px;border-radius:6px;background:#fce8e6;color:#c5221f;font-size:12px;font-weight:600;">👑 Platform Yöneticisi</span>
+                    @else
+                        <span style="padding:4px 10px;border-radius:6px;background:var(--sand);color:var(--ink);font-size:12px;font-weight:600;">🎬 İçerik Üreticisi</span>
+                    @endif
+
+                    @if($isSupporter)
+                        <span style="padding:4px 10px;border-radius:6px;background:#fef7e0;color:#b06000;font-size:12px;font-weight:600;">⭐ Aktif Destekçi</span>
+                    @endif
+
+                    @if($channel)
+                        <span style="padding:4px 10px;border-radius:6px;background:#e6f4ea;color:#137333;font-size:12px;font-weight:600;">✓ YouTube Bağlı</span>
+                    @else
+                        <span style="padding:4px 10px;border-radius:6px;background:#fef7e0;color:#9b5a00;font-size:12px;font-weight:600;">⚠️ Kanal Bekleniyor</span>
                     @endif
                 </div>
             </div>
         </div>
-
-        <div class="card">
-            <div class="eyebrow">Bugünkü takipler</div>
-            <div class="stat">{{ $followsToday }} / 6</div>
-            <div class="muted">Normal ve destekçi keşfi toplamı</div>
-        </div>
-
-        <div class="card">
-            <div class="eyebrow">Vitrin Durumu</div>
-            <div class="stat" style="color:var(--rust);">{{ count($selectedVideoIds) }} / 3 Video</div>
-            <div style="margin-top:8px;">
-                <a href="{{ route('videos.showcase') }}" class="muted" style="font-size:12px;text-decoration:underline;">Vitrini Düzenle ↗</a>
-            </div>
-        </div>
     </div>
 
-    <!-- EKİLİ VİDEOLAR / VİTRİN BÖLÜMÜ (KART ŞEKLİNDE) -->
-    <section style="margin-top:40px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;">
-            <div>
-                <div class="eyebrow" style="margin-bottom:2px;">Kanal İçerikleri & Vitrin</div>
-                <h2 style="font:26px 'DM Serif Display',serif;margin:0;color:var(--wine);">Ekli Kanal Videolarım</h2>
-            </div>
-            <div style="display:flex;gap:10px;align-items:center;">
-                @if($showcaseVideos->isNotEmpty())
-                    <span style="background:var(--sand);border:1px solid var(--line);padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;color:var(--rust);">
-                        ⭐ {{ $showcaseVideos->count() }}/3 Vitrinde Yayında
-                    </span>
-                @endif
-                <a href="{{ route('videos.showcase') }}" class="btn" style="padding:9px 18px;font-size:13px;display:inline-flex;align-items:center;gap:6px;">
-                    <span>⚙️ Vitrini Yönet / Video Ekle</span>
-                </a>
-            </div>
-        </div>
+    <!-- 2. TEMSİL EDİLEN AKTİF YOUTUBE KANALI -->
+    @if($channel)
+        <div class="card" style="margin-bottom:24px;border-left:5px solid #e52d27;background:var(--cream);">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+                <div style="display:flex;align-items:center;gap:16px;">
+                    @if($channel->thumbnail_url)
+                        <img src="{{ $channel->thumbnail_url }}" alt="{{ $channel->title }}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--line);box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+                    @else
+                        <div style="width:64px;height:64px;border-radius:50%;background:var(--wine);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;">▶</div>
+                    @endif
+                    <div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+                            <span style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#e52d27;">Temsil Edilen Aktif YouTube Kanalınız</span>
+                            <span style="padding:2px 8px;border-radius:4px;background:#e6f4ea;color:#137333;font-size:11px;font-weight:600;">Aktif</span>
+                        </div>
+                        <h2 style="font:26px 'DM Serif Display',serif;margin:0 0 4px;color:var(--ink);">{{ $channel->title }}</h2>
+                        <div style="font-size:13px;color:var(--muted);">
+                            {{ $channel->custom_url ? $channel->custom_url : ('ID: ' . $channel->youtube_channel_id) }}
+                            @if($activeLink?->started_at)
+                                · Bağlantı: {{ $activeLink->started_at->translatedFormat('d M Y') }}
+                            @endif
+                        </div>
+                    </div>
+                </div>
 
-        @if($myVideos->isEmpty())
-            <!-- Henüz Video Eklenmemişse Kart -->
-            <div class="card" style="padding:36px 24px;text-align:center;background:linear-gradient(to right,#fffdf8,#fcf6ee);border:2px dashed #d6bca8;">
-                <div style="font-size:42px;margin-bottom:10px;">🎬</div>
-                <h3 style="font:24px 'DM Serif Display',serif;margin:0 0 8px;color:var(--wine);">Henüz Ekli Video Bulunmuyor</h3>
-                <p class="muted" style="max-width:520px;margin:0 auto 20px;line-height:1.6;font-size:14px;">
-                    Topluluk keşif havuzunda öne çıkarmak istediğiniz <strong>en fazla 3 videoyu</strong> kanalınızdan tek tıkla çekebilir veya doğrudan YouTube linki yapıştırarak ekleyebilirsiniz.
-                </p>
-                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-                    <a href="{{ route('videos.showcase') }}" class="btn" style="padding:11px 22px;font-size:14px;">
-                        <span>+ Videoları Çek veya Link Ekle</span>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <a href="https://www.youtube.com/{{ $channel->custom_url ? ltrim($channel->custom_url, '/') : 'channel/' . $channel->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="padding:10px 16px;font-size:13px;display:inline-flex;gap:6px;align-items:center;">
+                        <span>YouTube'da Aç</span>
+                        <span>↗</span>
+                    </a>
+                    <a href="{{ route('channels.select') }}" class="btn secondary" style="padding:10px 16px;font-size:13px;">
+                        Kanalı Değiştir
                     </a>
                 </div>
             </div>
+        </div>
+    @else
+        <!-- Kanal Bağlı Değilse Net Uyarı Kartı -->
+        <div class="card" style="margin-bottom:24px;background:linear-gradient(135deg,#fffdfa 0%,#fdf5ec 100%);border:2px dashed var(--rust);text-align:center;padding:36px 24px;">
+            <div style="font-size:44px;margin-bottom:12px;">📺</div>
+            <h2 style="font:26px 'DM Serif Display',serif;margin:0 0 8px;color:var(--wine);">Henüz YouTube Kanalınızı Bağlamadınız</h2>
+            <p class="muted" style="max-width:520px;margin:0 auto 20px;line-height:1.6;font-size:14px;">
+                Topluluk havuzunda yer almak, video vitrininizi oluşturmak ve üretici dayanışmasına katılmak için kanalınızı bağlayın.
+            </p>
+            <a href="{{ route('channels.select') }}" class="btn" style="padding:12px 26px;font-size:14px;">
+                <span>➕ YouTube Kanalını Şimdi Bağla</span>
+            </a>
+        </div>
+    @endif
+
+    <!-- 3. DÖRT TEMEL TOPLULUK METRİĞİ (GÖRSELDEKİ KARTLAR) -->
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:24px;">
+        <div class="card" style="padding:20px;">
+            <div class="eyebrow">PLATFORM TAKİBİ</div>
+            <div class="stat" style="color:var(--wine);">{{ $followsCount }}</div>
+            <div class="muted">Takip ettiğin üretici</div>
+        </div>
+
+        <div class="card" style="padding:20px;">
+            <div class="eyebrow">TOPLULUK İLGİSİ</div>
+            <div class="stat" style="color:var(--rust);">{{ $followersCount }}</div>
+            <div class="muted">Seni takip eden üretici</div>
+        </div>
+
+        <div class="card" style="padding:20px;">
+            <div class="eyebrow">KEŞİF HAVUZU</div>
+            <div style="font:24px 'DM Serif Display';margin:10px 0 6px;color:var(--ink);">
+                {{ $channel ? 'Aktif Havuz' : 'Beklemede' }}
+            </div>
+            <div class="muted">{{ $channel ? 'Üretici listesinde görünür' : 'Kanal bağlantısı bekleniyor' }}</div>
+        </div>
+
+        <div class="card" style="padding:20px;">
+            <div class="eyebrow">DESTEKÇİ STATÜSÜ</div>
+            <div style="font:24px 'DM Serif Display';margin:10px 0 6px;color:var(--ink);">
+                {{ $isSupporter ? 'Aktif Destekçi' : 'Standart Üye' }}
+            </div>
+            <div class="muted">{{ $isSupporter ? 'Öncelikli havuzda listelenir' : 'Gelişmiş destek havuzu' }}</div>
+        </div>
+    </div>
+
+    <!-- 4. GÜNLÜK KEŞİF VE VİTRİN DURUM KARTLARI -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:28px;">
+        <div class="card" style="padding:20px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div class="eyebrow">Bugünkü Keşif Kotası</div>
+                <div style="font:28px 'DM Serif Display';margin:6px 0 2px;color:var(--wine);">
+                    {{ $followsToday }} / 6
+                </div>
+                <div class="muted" style="font-size:12px;">Günlük platform takip hakkı</div>
+            </div>
+            <a href="{{ route('discovery.users', 'normal') }}" class="btn secondary" style="padding:9px 14px;font-size:12px;">
+                Keşfe Başla →
+            </a>
+        </div>
+
+        <div class="card" style="padding:20px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div class="eyebrow">Vitrin Durumu</div>
+                <div style="font:28px 'DM Serif Display';margin:6px 0 2px;color:var(--rust);">
+                    {{ $showcaseVideos->count() }} / 3 Video
+                </div>
+                <div class="muted" style="font-size:12px;">Keşifte öne çıkan içerik</div>
+            </div>
+            <a href="{{ route('videos.showcase') }}" class="btn secondary" style="padding:9px 14px;font-size:12px;">
+                Vitrini Düzenle ↗
+            </a>
+        </div>
+    </div>
+
+    <!-- 5. VİTRİNDEKİ VİDEOLARIM BÖLÜMÜ (YALNIZCA SEÇİLEN 3 VİDEO) -->
+    <section class="card" style="margin-bottom:28px;padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;">
+            <div>
+                <div class="eyebrow" style="color:var(--rust);">Öne Çıkan İçerikler</div>
+                <h2 style="font:24px 'DM Serif Display',serif;margin:2px 0 0;color:var(--wine);">Vitrindeki Videolarım</h2>
+            </div>
+            <a href="{{ route('videos.showcase') }}" class="btn" style="padding:8px 16px;font-size:13px;">
+                ⚙️ Vitrini Yönet
+            </a>
+        </div>
+
+        @if($showcaseVideos->isEmpty())
+            <div style="text-align:center;padding:32px 16px;background:#fffdfa;border:2px dashed #e7d8ca;border-radius:12px;">
+                <div style="font-size:36px;margin-bottom:8px;">✨</div>
+                <div style="font-weight:700;font-size:16px;color:var(--wine);margin-bottom:4px;">Henüz Vitrininizde Video Bulunmuyor</div>
+                <p class="muted" style="max-width:480px;margin:0 auto 16px;font-size:13px;line-height:1.5;">
+                    Topluluk keşif havuzunda diğer üreticilerin izlemesi için en fazla 3 videonuzu vitrininize ekleyin.
+                </p>
+                <a href="{{ route('videos.showcase') }}" class="btn secondary" style="padding:10px 18px;font-size:13px;">
+                    ＋ Vitrine Video Ekle
+                </a>
+            </div>
         @else
-            <!-- Ekli Videolar Grid (Kart Şeklinde) -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:20px;">
-                @foreach($myVideos as $video)
-                @php $isVitrin = in_array($video->id, $selectedVideoIds, true); @endphp
-                <article class="card" style="padding:0;overflow:hidden;border-radius:14px;border:2px solid {{ $isVitrin ? 'var(--rust)' : 'var(--line)' }};display:flex;flex-direction:column;box-shadow:0 3px 12px rgba(32,26,23,0.04);transition:transform .15s ease,box-shadow .15s ease;">
-                    
-                    <!-- Thumbnail & Rozet -->
-                    <div style="position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#201a17;">
-                        @if($video->thumbnail_url)
-                            <img src="{{ $video->thumbnail_url }}" alt="{{ $video->title }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
+                @foreach($showcaseVideos as $idx => $sv)
+                <div style="border-radius:12px;border:1px solid var(--line);background:var(--cream);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                    <div style="position:relative;width:100%;aspect-ratio:16/9;background:#1a1412;">
+                        @if($sv->thumbnail_url)
+                            <img src="{{ $sv->thumbnail_url }}" alt="{{ $sv->title }}" style="width:100%;height:100%;object-fit:cover;display:block;">
                         @else
-                            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:32px;">▶</div>
+                            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;">▶</div>
                         @endif
-
-                        <!-- Durum Rozeti -->
-                        <div style="position:absolute;top:10px;left:10px;z-index:2;">
-                            @if($isVitrin)
-                                <span style="background:var(--rust);color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.35);letter-spacing:0.3px;">
-                                    ⭐ Vitrinde Yayında
-                                </span>
-                            @else
-                                <span style="background:rgba(32,26,23,0.72);color:#fff;font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;backdrop-filter:blur(4px);">
-                                    Kanal Videosu
-                                </span>
-                            @endif
-                        </div>
-
-                        <!-- Oynat Overlay Butonu -->
-                        <button type="button" class="play-video-btn" data-video-id="{{ $video->youtube_video_id }}" data-video-title="{{ $video->title }}" style="position:absolute;inset:0;width:100%;height:100%;background:rgba(0,0,0,0.18);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s ease;" title="Videoyu Önizle">
-                            <span style="width:48px;height:48px;border-radius:50%;background:rgba(184,80,48,0.92);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;padding-left:3px;box-shadow:0 4px 14px rgba(0,0,0,.4);transition:transform .15s ease;">▶</span>
-                        </button>
+                        <span style="position:absolute;top:8px;left:8px;background:var(--rust);color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:5px;">
+                            ⭐ Vitrinde Yayında
+                        </span>
                     </div>
-
-                    <!-- Kart Gövdesi -->
-                    <div style="padding:15px 16px;flex:1;display:flex;flex-direction:column;justify-content:space-between;">
-                        <div>
-                            <h3 style="font-size:14px;font-weight:600;line-height:1.45;color:var(--wine);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:0 0 8px;min-height:40px;" title="{{ $video->title }}">
-                                {{ $video->title }}
-                            </h3>
-                            <div class="muted" style="font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:14px;">
-                                <span>📺 {{ $channel->title }}</span>
-                                @if($video->published_at)
-                                    <span>•</span>
-                                    <span>{{ $video->published_at->diffForHumans() }}</span>
-                                @endif
-                            </div>
-                        </div>
-
-                        <!-- Aksiyon Butonları -->
-                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--line);">
-                            <button type="button" class="btn secondary play-video-btn" data-video-id="{{ $video->youtube_video_id }}" data-video-title="{{ $video->title }}" style="flex:1;min-width:70px;padding:7px 10px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:4px;">
-                                <span>▶ Önizle</span>
-                            </button>
-                            <a href="https://www.youtube.com/watch?v={{ $video->youtube_video_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="padding:7px 10px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:3px;" title="YouTube'da Aç">
-                                <span>YT ↗</span>
+                    <div style="padding:12px 14px;flex:1;display:flex;flex-direction:column;justify-content:space-between;">
+                        <h3 style="font-size:13px;font-weight:600;line-height:1.4;color:var(--wine);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:0 0 10px;" title="{{ $sv->title }}">
+                            {{ $sv->title }}
+                        </h3>
+                        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:8px;">
+                            <a href="https://www.youtube.com/watch?v={{ $sv->youtube_video_id }}" target="_blank" rel="noopener noreferrer" class="muted" style="font-size:12px;text-decoration:underline;">
+                                YouTube'da İzle ↗
                             </a>
-                            @if($isVitrin)
-                                <form method="POST" action="{{ route('videos.showcase.remove', $video->id) }}" style="display:inline;" onsubmit="return confirm('“{{ addslashes($video->title) }}” videosunu vitrininizden kaldırmak istediğinize emin misiniz?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn secondary" style="padding:7px 10px;font-size:12px;color:#c93b2b;background:#fff5f3;border-color:#f5c6cb;cursor:pointer;display:inline-flex;align-items:center;gap:3px;" title="Vitrinden Kaldır">
-                                        <span>✕ Kaldır</span>
-                                    </button>
-                                </form>
-                            @elseif(count($selectedVideoIds) < 3)
-                                <form method="POST" action="{{ route('videos.showcase.add_single', $video->id) }}" style="display:inline;">
-                                    @csrf
-                                    <button type="submit" class="btn secondary" style="padding:7px 10px;font-size:12px;color:var(--rust);border-color:var(--rust);cursor:pointer;display:inline-flex;align-items:center;gap:3px;" title="Vitrinde Sergile">
-                                        <span>⭐ Ekle</span>
-                                    </button>
-                                </form>
-                            @endif
+                            <span class="muted" style="font-size:11px;">Slot {{ $idx + 1 }}</span>
                         </div>
                     </div>
-                </article>
+                </div>
                 @endforeach
             </div>
         @endif
     </section>
-@endif
 
-<!-- Keşif Havuzları -->
-<div class="grid" style="margin-top:40px;">
-    <div class="card">
-        <div class="eyebrow">Normal havuz</div>
-        <h2 style="font:25px 'DM Serif Display',serif;margin:4px 0 8px;">Üreticileri keşfet</h2>
-        <p class="muted">10 profil arasından 3 kişiyi platformda takip et.</p>
-        <a href="{{ route('discovery.users','normal') }}" class="btn secondary">Normal keşif</a>
+    <!-- 6. DİĞER KAYITLI KANALLAR (EĞER VARSA) -->
+    @if(isset($otherChannels) && $otherChannels->isNotEmpty())
+        <div class="card" style="margin-bottom:28px;padding:22px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div class="eyebrow">Alternatif Kanallarınız</div>
+                <span style="font-size:12px;color:var(--muted);background:var(--sand);padding:2px 8px;border-radius:6px;">{{ $otherChannels->count() }} alternatif</span>
+            </div>
+            <p class="muted" style="font-size:13px;margin:0 0 14px;">
+                Temsil etmek istediğiniz kanalı aşağıdan seçerek tek tıkla aktif edebilirsiniz.
+            </p>
+
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                @foreach($otherChannels as $oc)
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-radius:10px;background:#fffdfa;border:1px solid var(--line);">
+                        <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
+                            @if($oc->thumbnail_url)
+                                <img src="{{ $oc->thumbnail_url }}" alt="{{ $oc->title }}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                            @else
+                                <div style="width:40px;height:40px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0;">▶</div>
+                            @endif
+                            <div style="min-width:0;flex:1;">
+                                <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $oc->title }}</div>
+                                <div style="font-size:11px;color:var(--muted);">{{ $oc->custom_url ?? $oc->youtube_channel_id }}</div>
+                            </div>
+                        </div>
+
+                        <form method="POST" action="{{ route('channels.store') }}" style="margin:0;flex-shrink:0;">
+                            @csrf
+                            <input type="hidden" name="channel_id" value="{{ $oc->youtube_channel_id }}">
+                            <button type="submit" class="btn secondary" style="padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--rust);color:var(--rust);">
+                                Bu Kanala Geç
+                            </button>
+                        </form>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
+    <!-- 7. KEŞİF HAVUZLARI HIZLI ERİŞİM KARTLARI -->
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px;">
+        <div class="card" style="padding:22px;">
+            <div class="eyebrow">Normal Havuz</div>
+            <h3 style="font:22px 'DM Serif Display',serif;margin:4px 0 6px;color:var(--wine);">Üreticileri Keşfet</h3>
+            <p class="muted" style="font-size:13px;margin-bottom:14px;">10 profil arasından 3 üreticiyi platformda takip et.</p>
+            <a href="{{ route('discovery.users','normal') }}" class="btn secondary" style="padding:8px 14px;font-size:13px;">Normal Keşif →</a>
+        </div>
+        <div class="card" style="padding:22px;">
+            <div class="eyebrow">Destekçi Havuzu</div>
+            <h3 style="font:22px 'DM Serif Display',serif;margin:4px 0 6px;color:var(--wine);">Destekçileri Keşfet</h3>
+            <p class="muted" style="font-size:13px;margin-bottom:14px;">Aktif destekçi üreticilerin yer aldığı öncelikli havuz.</p>
+            <a href="{{ route('discovery.users','supporter') }}" class="btn secondary" style="padding:8px 14px;font-size:13px;">Destekçi Keşfi →</a>
+        </div>
+        <div class="card" style="padding:22px;">
+            <div class="eyebrow">Sıralı Video Havuzu</div>
+            <h3 style="font:22px 'DM Serif Display',serif;margin:4px 0 6px;color:var(--wine);">Videoları Keşfet</h3>
+            <p class="muted" style="font-size:13px;margin-bottom:14px;">Diğer üreticilerin vitrin videolarını sırayla izle.</p>
+            <a href="{{ route('discovery.videos') }}" class="btn secondary" style="padding:8px 14px;font-size:13px;">Sıralı Oynatıcı →</a>
+        </div>
     </div>
-    <div class="card">
-        <div class="eyebrow">Destekçi havuzu</div>
-        <h2 style="font:25px 'DM Serif Display',serif;margin:4px 0 8px;">Destekçileri keşfet</h2>
-        <p class="muted">Aktif destekçi üreticiler ayrı listelenir.</p>
-        <a href="{{ route('discovery.users','supporter') }}" class="btn secondary">Destekçi keşfi</a>
+
+    <!-- 8. ŞEFFAFLIK VE ORGANİK TOPLULUK İLKESİ -->
+    <div class="card" style="background:#f7efe5;border:1px solid #e7d8ca;padding:18px 22px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+            <span style="font-size:22px;line-height:1;">🛡️</span>
+            <div style="font-size:13px;color:#614c40;line-height:1.6;">
+                <strong>Şeffaf ve Organik Topluluk İlkesi:</strong> YouTube Keşif profilinizde abone sayıları, izlenme baskısı veya yapay yarışlar sergilenmez. Amaç samimi üretici dayanışması ve birbirini keşfetmektir.
+            </div>
+        </div>
     </div>
-    <div class="card">
-        <div class="eyebrow">Video havuzu</div>
-        <h2 style="font:25px 'DM Serif Display',serif;margin:4px 0 8px;">Videolara göz at</h2>
-        <p class="muted">Video izleme zorunlu görev veya ödül koşulu değildir.</p>
-        <a href="{{ route('discovery.videos') }}" class="btn secondary">Video keşfi</a>
-    </div>
+
 </div>
-
-<!-- İNTERAKTİF VİDEO ÖNİZLEME MODALI -->
-<div id="videoModal" style="display:none;position:fixed;inset:0;background:rgba(20,15,13,0.85);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:16px;">
-    <div style="background:var(--cream);border-radius:16px;max-width:760px;width:100%;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.5);border:1px solid var(--line);">
-        <div style="padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);">
-            <div id="modalVideoTitle" style="font-weight:700;font-size:15px;color:var(--wine);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:12px;">Video Önizleme</div>
-            <button type="button" id="closeModalBtn" style="background:transparent;border:none;font-size:24px;line-height:1;cursor:pointer;color:var(--muted);padding:0 4px;" title="Kapat">×</button>
-        </div>
-        <div style="position:relative;aspect-ratio:16/9;background:#000;">
-            <iframe id="modalVideoIframe" src="" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-        </div>
-        <div style="padding:12px 20px;display:flex;justify-content:flex-end;">
-            <button type="button" id="closeModalBtn2" class="btn secondary" style="padding:7px 16px;font-size:13px;">Kapat</button>
-        </div>
-    </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('videoModal');
-    const iframe = document.getElementById('modalVideoIframe');
-    const titleEl = document.getElementById('modalVideoTitle');
-    const closeBtns = [document.getElementById('closeModalBtn'), document.getElementById('closeModalBtn2')];
-
-    function openModal(videoId, title) {
-        if (!modal || !iframe) return;
-        titleEl.textContent = title || 'Video Önizleme';
-        iframe.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1&rel=0';
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeModal() {
-        if (!modal || !iframe) return;
-        iframe.src = '';
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }
-
-    document.querySelectorAll('.play-video-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const vid = this.getAttribute('data-video-id');
-            const title = this.getAttribute('data-video-title');
-            if (vid) openModal(vid, title);
-        });
-    });
-
-    closeBtns.forEach(btn => {
-        if (btn) btn.addEventListener('click', closeModal);
-    });
-
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) closeModal();
-        });
-    }
-
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
-            closeModal();
-        }
-    });
-});
-</script>
 @endsection

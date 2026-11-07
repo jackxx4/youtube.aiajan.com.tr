@@ -59,17 +59,20 @@ Route::middleware('auth')->group(function(){
  Route::get('/kesfet/videolar',[DiscoveryController::class,'videos'])->name('discovery.videos');
  Route::post('/kesfet/videolar/sec',[DiscoveryController::class,'selectVideos'])->name('discovery.videos.select');
  Route::post('/kesfet/videolar/sifirla',[DiscoveryController::class,'resetVideos'])->name('discovery.videos.reset');
- Route::get('/vitrenim',[VideoShowcaseController::class,'index'])->name('videos.showcase');
- Route::post('/vitrenim',[VideoShowcaseController::class,'update'])->name('videos.showcase.update');
- Route::delete('/vitrenim/videolar/{video}',[VideoShowcaseController::class,'removeSingle'])->name('videos.showcase.remove');
- Route::post('/vitrenim/videolar/{video}/ekle',[VideoShowcaseController::class,'addSingle'])->name('videos.showcase.add_single');
- Route::post('/vitrenim/sifirla',[VideoShowcaseController::class,'clearAll'])->name('videos.showcase.clear');
- Route::post('/vitrenim/senkronize',[VideoShowcaseController::class,'syncChannelVideos'])->name('videos.showcase.sync');
- Route::post('/vitrenim/video-ekle',[VideoShowcaseController::class,'addVideoByUrl'])->name('videos.showcase.add_url');
+ Route::redirect('/vitrenim', '/vitrinim', 301);
+ Route::get('/vitrinim',[VideoShowcaseController::class,'index'])->name('videos.showcase');
+ Route::post('/vitrinim',[VideoShowcaseController::class,'update'])->name('videos.showcase.update');
+ Route::delete('/vitrinim/videolar/{video}',[VideoShowcaseController::class,'removeSingle'])->name('videos.showcase.remove');
+ Route::post('/vitrinim/videolar/{video}/ekle',[VideoShowcaseController::class,'addSingle'])->name('videos.showcase.add_single');
+ Route::post('/vitrinim/sifirla',[VideoShowcaseController::class,'clearAll'])->name('videos.showcase.clear');
+ Route::post('/vitrinim/senkronize',[VideoShowcaseController::class,'syncChannelVideos'])->name('videos.showcase.sync');
+ Route::post('/vitrinim/video-ekle',[VideoShowcaseController::class,'addVideoByUrl'])->name('videos.showcase.add_url');
  Route::prefix('yonetim')->name('admin.')->middleware('admin')->group(function () {
      Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+     Route::get('/kullanicilar', [AdminDashboardController::class, 'users'])->name('users');
      Route::post('/kullanici/{user}/rol', [AdminDashboardController::class, 'toggleRole'])->name('users.toggle_role');
      Route::post('/kullanici/{user}/durum', [AdminDashboardController::class, 'toggleStatus'])->name('users.toggle_status');
+     Route::delete('/kullanici/{user}', [AdminDashboardController::class, 'destroyUser'])->name('users.destroy');
      Route::post('/onbellek-temizle', [AdminDashboardController::class, 'clearCache'])->name('clear_cache');
  });
 });

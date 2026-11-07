@@ -211,7 +211,6 @@
             <a href="{{ route('discovery.users', 'normal') }}" class="{{ $cur==='discovery' ? 'active' : '' }}"><span class="nav-icon">👥</span><span>Kullanıcı Keşfi</span></a>
             <a href="{{ route('discovery.users', 'supporter') }}" class="{{ $cur==='supporter' ? 'active' : '' }}"><span class="nav-icon">⭐</span><span>Destekçiler</span></a>
             <a href="{{ route('discovery.videos') }}" class="{{ $cur==='videos' ? 'active' : '' }}"><span class="nav-icon">🎬</span><span>Video Keşfi</span></a>
-            <a href="{{ route('profile.me') }}" class="{{ $cur==='profile' ? 'active' : '' }}"><span class="nav-icon">👤</span><span>Profilim</span></a>
             @if(auth()->check() && auth()->user()->role === 'admin')
                 <a href="{{ route('admin.dashboard') }}" class="{{ $cur==='admin' ? 'active' : '' }}"><span class="nav-icon">🔧</span><span>Yönetim</span></a>
             @endif
@@ -285,9 +284,9 @@
         <span class="bottom-icon">🎬</span>
         <span>Videolar</span>
     </a>
-    <a href="{{ route('profile.me') }}" class="bottom-nav-item {{ $cur==='profile' ? 'active' : '' }}">
-        <span class="bottom-icon">👤</span>
-        <span>Profil</span>
+    <a href="{{ route('videos.showcase') }}" class="bottom-nav-item {{ $cur==='showcase' ? 'active' : '' }}">
+        <span class="bottom-icon">✨</span>
+        <span>Vitrin</span>
     </a>
     <button type="button" class="bottom-nav-item" id="bottomMenuToggle" aria-label="Tüm Menüyü Aç">
         <span class="bottom-icon">☰</span>
