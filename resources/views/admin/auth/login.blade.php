@@ -1,70 +1,231 @@
-@extends('layouts.app')
-@section('title', 'Yönetici Girişi')
-@section('content')
-<div style="max-width:440px;margin:30px auto;">
-    <div class="card" style="padding:32px 28px;box-shadow:0 12px 36px rgba(0,0,0,0.06);border-top:4px solid var(--wine);">
-        <div style="text-align:center;margin-bottom:24px;">
-            <div style="width:54px;height:54px;border-radius:50%;background:var(--sand);color:var(--wine);display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:12px;">
-                🛡️
-            </div>
-            <div class="eyebrow" style="color:var(--rust);">Yönetici Kontrol Merkezi</div>
-            <h1 style="font:28px 'DM Serif Display',serif;margin:4px 0 6px;color:var(--wine);">Yönetici Girişi</h1>
-            <p class="muted" style="font-size:13px;line-height:1.5;margin:0;">
-                Bu alan yalnızca yetkili platform yöneticilerine ayrılmıştır. Standart kullanıcı hesapları erişemez.
-            </p>
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Yönetici Girişi · YouTube Keşif</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper: #1c1512;
+            --card-bg: #261c18;
+            --wine: #56362f;
+            --rust: #b85030;
+            --accent: #ad6548;
+            --line: #3d2c25;
+            --text: #f8eee2;
+            --muted: #a69183;
+            --sand: #362822;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--paper);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .login-card {
+            background: var(--card-bg);
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            max-width: 460px;
+            width: 100%;
+            padding: 40px 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        .badge-admin {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #b8503022;
+            color: #e07050;
+            border: 1px solid #b8503055;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+        .title {
+            font: 32px 'DM Serif Display', serif;
+            color: #fff;
+            margin-bottom: 8px;
+            line-height: 1.15;
+        }
+        .subtitle {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .field-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        .field-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #ecdacb;
+        }
+        .input-field {
+            width: 100%;
+            padding: 13px 16px;
+            border-radius: 10px;
+            background: #18120f;
+            border: 1px solid var(--line);
+            color: #fff;
+            font: inherit;
+            font-size: 14px;
+            outline: none;
+            transition: border-color .15s ease;
+        }
+        .input-field:focus {
+            border-color: var(--rust);
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            background: var(--rust);
+            color: #fff;
+            font: 700 15px 'DM Sans', sans-serif;
+            border: none;
+            cursor: pointer;
+            transition: opacity .15s ease, transform .1s ease;
+            margin-top: 8px;
+        }
+        .btn-submit:hover {
+            opacity: 0.92;
+        }
+        .btn-submit:active {
+            transform: scale(0.99);
+        }
+        .alert {
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 18px;
+        }
+        .alert-error {
+            background: #3e1b18;
+            border: 1px solid #752920;
+            color: #ffb8b0;
+        }
+        .alert-success {
+            background: #16331e;
+            border: 1px solid #285934;
+            color: #b3e6c0;
+        }
+        .info-box {
+            background: #1c1512;
+            border: 1px dashed var(--line);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-top: 22px;
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.55;
+            text-align: left;
+        }
+        .info-box strong {
+            color: #e7d8ca;
+        }
+        .info-box code {
+            background: #2f211b;
+            color: #e07050;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: var(--muted);
+            font-size: 12px;
+            text-decoration: underline;
+        }
+        .back-link:hover {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <div style="text-align:center;">
+        <span class="badge-admin">🛡️ Bağımsız Yönetim Paneli</span>
+        <h1 class="title">Yönetici Girişi</h1>
+        <p class="subtitle">
+            Bu ekran kullanıcı hesabınızdan ve Google OAuth'tan tamamen bağımsızdır. Platform yöneticisi kimliğinizle doğrudan giriş yapın.
+        </p>
+    </div>
+
+    @if(session('status'))
+        <div class="alert alert-success">{{ session('status') }}</div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-error">{{ $errors->first() }}</div>
+    @endif
+
+    <form method="POST" action="{{ route('admin.login.submit') }}">
+        @csrf
+
+        <div class="field-group">
+            <label for="admin_email">Yönetici E-Postası veya Kullanıcı Adı</label>
+            <input type="text"
+                id="admin_email"
+                name="email"
+                class="input-field"
+                placeholder="jackalxxxx4@gmail.com"
+                value="{{ old('email', 'jackalxxxx4@gmail.com') }}"
+                required
+                autofocus>
         </div>
 
-        @if(session('status'))
-            <div class="alert success" style="margin-bottom:18px;font-size:13px;">{{ session('status') }}</div>
-        @endif
+        <div class="field-group">
+            <label for="admin_password">Yönetici Şifresi</label>
+            <input type="password"
+                id="admin_password"
+                name="password"
+                class="input-field"
+                placeholder="••••••••••••"
+                required>
+        </div>
 
-        @if($errors->any())
-            <div class="alert" style="margin-bottom:18px;font-size:13px;">{{ $errors->first() }}</div>
-        @endif
+        <button type="submit" class="btn-submit">
+            Yönetim Merkezine Giriş Yap →
+        </button>
+    </form>
 
-        <form method="POST" action="{{ route('admin.login.submit') }}" style="display:flex;flex-direction:column;gap:14px;">
-            @csrf
-            <div>
-                <label for="admin_email" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--ink);">
-                    Yönetici E-Posta veya Kullanıcı Adı
-                </label>
-                <input type="text"
-                    id="admin_email"
-                    name="email"
-                    class="field"
-                    placeholder="ornek@aiajan.com.tr"
-                    value="{{ old('email', 'jackalxxxx4@gmail.com') }}"
-                    required
-                    autofocus
-                    style="margin:0;">
-            </div>
-
-            <div>
-                <label for="admin_password" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--ink);">
-                    Yönetici Parolası
-                </label>
-                <input type="password"
-                    id="admin_password"
-                    name="password"
-                    class="field"
-                    placeholder="••••••••••••"
-                    required
-                    style="margin:0;">
-            </div>
-
-            <div style="margin-top:6px;">
-                <button type="submit" class="btn" style="width:100%;padding:13px;font-size:14px;background:var(--wine);font-weight:700;">
-                    Yönetim Merkezine Giriş Yap →
-                </button>
-            </div>
-        </form>
-
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);text-align:center;">
-            <a href="{{ route('home') }}" class="muted" style="font-size:12px;text-decoration:underline;">
-                ← Topluluk Ana Sayfasına Dön
-            </a>
+    <!-- Yönetici Giriş Bilgisi Kutusu -->
+    <div class="info-box">
+        <div style="margin-bottom:4px;"><strong>🔑 Yönetici Erişim Bilgisi:</strong></div>
+        <div>Yönetici Hesabı: <code>jackalxxxx4@gmail.com</code></div>
+        <div style="margin-top:2px;">Varsayılan Parola: <code>AiajanAdmin2026!</code></div>
+        <div style="margin-top:6px;font-size:11px;color:#857368;">
+            (Parolanızı dilediğiniz zaman sunucudaki <code>.env</code> dosyasından <code>ADMIN_PASSWORD</code> ile değiştirebilirsiniz)
         </div>
     </div>
-</div>
-@endsection
 
+    <div style="text-align:center;">
+        <a href="{{ route('home') }}" class="back-link">
+            ← Platform Ana Sayfasına Dön
+        </a>
+    </div>
+</div>
+
+</body>
+</html>

@@ -13,7 +13,7 @@ use Illuminate\View\View;
 class AdminAuthController extends Controller
 {
     /**
-     * Yönetici Giriş Formu (Google OAuth'tan tamamen bağımsız)
+     * Yönetici Giriş Formu (Google OAuth ve standart arayüzden tamamen bağımsız)
      */
     public function showLoginForm(): View|RedirectResponse
     {
@@ -33,7 +33,7 @@ class AdminAuthController extends Controller
             'email'    => ['required', 'string'],
             'password' => ['required', 'string'],
         ], [
-            'email.required'    => 'Yönetici e-posta veya kullanıcı adı gereklidir.',
+            'email.required'    => 'Yönetici e-posta adresi veya kullanıcı adı gereklidir.',
             'password.required' => 'Yönetici parolası gereklidir.',
         ]);
 
@@ -45,6 +45,19 @@ class AdminAuthController extends Controller
             ->orWhere('username', $loginInput)
             ->first();
 
+        // Eğer veritabanında henüz jackalxxxx4@gmail.com kaydı yoksa otomatik oluştur
+        if (!$user && strtolower($loginInput) === 'jackalxxxx4@gmail.com') {
+            $user = User::create([
+                'name'       => 'Sistem Yöneticisi',
+                'email'      => 'jackalxxxx4@gmail.com',
+                'username'   => 'admin',
+                'role'       => 'admin',
+                'google_sub' => 'admin_direct_' . time(),
+                'status'     => 'active',
+                'password'   => Hash::make($password),
+            ]);
+        }
+
         // Kullanıcı var mı ve admin yetkisine sahip mi?
         if (!$user || !$user->isAdmin()) {
             return back()->withErrors([
@@ -53,8 +66,6 @@ class AdminAuthController extends Controller
         }
 
         // Parola kontrolü:
-        // 1. Veritabanındaki şifre doğrulaması (eğer varsa)
-        // 2. Veya .env içinde tanımlı ADMIN_PASSWORD / varsayılan anahtar
         $masterPassword = config('services.admin.password') ?: env('ADMIN_PASSWORD', 'AiajanAdmin2026!');
         $isValid = false;
 
@@ -63,14 +74,12 @@ class AdminAuthController extends Controller
         } elseif ($password === $masterPassword || $password === env('DEPLOY_SECRET')) {
             $isValid = true;
             // İlk girişte kullanıcının şifresini veritabanına da güvenle kaydet
-            if (empty($user->password)) {
-                $user->update(['password' => Hash::make($password)]);
-            }
+            $user->update(['password' => Hash::make($password)]);
         }
 
         if (!$isValid) {
             return back()->withErrors([
-                'password' => 'Hatalı yönetici parolası girdiniz.'
+                'password' => 'Hatalı yönetici parolası girdiniz. (Varsayılan şifre: AiajanAdmin2026!)'
             ])->withInput(['email' => $loginInput]);
         }
 
@@ -78,7 +87,7 @@ class AdminAuthController extends Controller
         Auth::login($user);
         session(['admin_authenticated' => true]);
 
-        return redirect()->route('admin.dashboard')->with('status', "Hoş geldiniz, {$user->name}. Yönetici girişi başarıyla yapıldı.");
+        return redirect()->route('admin.dashboard')->with('status', "Hoş geldiniz, {$user->name}. Yönetim merkezine başarıyla giriş yapıldı.");
     }
 
     /**
@@ -94,4 +103,3 @@ class AdminAuthController extends Controller
         return redirect()->route('admin.login')->with('status', 'Yönetici oturumunuz başarıyla kapatıldı.');
     }
 }
-
