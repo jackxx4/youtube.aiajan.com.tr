@@ -179,18 +179,19 @@ def sync_remote_env(ftp: ftplib.FTP):
         k, v = line.split("=", 1)
         env_dict[k.strip()] = v.strip()
 
-    # Canlı ortam zorunlu değişkenleri
+    # Canlı ortam zorunlu değişkenleri (Plesk Windows MS SQL Server)
     updates = {
         "APP_NAME": '"YouTube Kesif"',
         "APP_ENV": "production",
         "APP_DEBUG": "false",
         "APP_URL": LIVE_URL,
-        "DB_CONNECTION": "mysql",
+        "DB_CONNECTION": "sqlsrv",
         "DB_HOST": "127.0.0.1",
-        "DB_PORT": "3306",
+        "DB_PORT": "1433",
         "DB_DATABASE": "youtube_db",
         "DB_USERNAME": "youtubedb",
         "DB_PASSWORD": '!?Uc8nu0YvHylad2',
+        "DB_TRUST_SERVER_CERTIFICATE": "true",
         "SESSION_DRIVER": "file",
         "CACHE_STORE": "file",
         "QUEUE_CONNECTION": "sync",

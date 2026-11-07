@@ -26,7 +26,7 @@
   "config/app.php": "617_1794021548",
   "config/auth.php": "464_1794021548",
   "config/cache.php": "723_1794021548",
-  "config/database.php": "2008_1794021548",
+  "config/database.php": "2391_1794026333",
   "config/filesystems.php": "423_1794021548",
   "config/hashing.php": "194_1794021548",
   "config/logging.php": "1268_1794021548",
@@ -60,6 +60,6 @@
   "resources/views/layouts/app.blade.php": "6849_1794025016",
   "resources/views/channels/select.blade.php": "1201_1794021548",
   "routes/console.php": "210_1794021548",
-  "routes/web.php": "2773_1794026040",
+  "routes/web.php": "2773_1794026366",
   "crates/youtube-sync/src/main.rs": "9580_1794024249"
 }
