@@ -1,9 +1,10 @@
 <?php
 
 return [
-    'current' => '1.3.4',
-    'release_name' => 'Video Vitrin Güvenlik Sertleştirmesi & Dashboard İyileştirmeleri',
-    'updated_at' => '2026-11-07T09:37:00',
+    'current' => '1.4.0',
+    'release_name' => 'Deploy Güvenlik Sertleştirmesi, Profil Kanal Geçmişi & Mantık Düzeltmeleri',
+    'updated_at' => '2026-11-07T12:00:00',
 ];
+
 
 

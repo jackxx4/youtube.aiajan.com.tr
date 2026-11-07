@@ -77,9 +77,14 @@ echo "▶ 2. Adım: Canlı sunucu yayını ve logları doğrulandı. GitHub senk
 
 # 2. Aşama: Canlı sunucu başarıyla doğrulandıktan sonra GitHub'a push et
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # Önce uzak değişiklikleri çek — aksi halde bizim git commit'lerimizi ezer
+    echo "  [↓] GitHub origin main'den son değişiklikler çekiliyor..."
+    git pull --rebase origin main || true
+
     if ! git diff-index --quiet HEAD -- 2>/dev/null; then
-        echo "  [i] Değişiklikler commit ediliyor..."
-        git add -A
+        echo "  [i] Yerel değişiklikler commit ediliyor..."
+        # deploy.py ve deploy.sh gibi deploy araçlarını hariç tut
+        git add app/ config/ database/ resources/ routes/ bootstrap/ public/
         git commit -m "deploy: canlı sunucuya dağıtıldı, loglar kontrol edildi ve doğrulandı"
     fi
 

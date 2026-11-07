@@ -13,7 +13,6 @@ import io
 import json
 import os
 import re
-import ssl
 import sys
 import time
 import urllib.parse
@@ -56,7 +55,7 @@ def get_current_version() -> str:
 
 
 def update_firestore_version(version: str):
-    api_key = _env.get("FIREBASE_API_KEY", "AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA")
+    api_key = _env.get("FIREBASE_API_KEY", "")
     if not api_key:
         return
     url = (
@@ -71,25 +70,24 @@ def update_firestore_version(version: str):
     }).encode("utf-8")
     try:
         req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="PATCH")
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        with urllib.request.urlopen(req, timeout=10, context=ctx):
-            print(f"📡 Canlı versiyon Firestore üzerinde senkronize edildi (v{version}).")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            pass
+        print(f"📡 Canlı versiyon Firestore üzerinde senkronize edildi (v{version}).")
     except Exception as e:
         print(f"⚠️ Firestore versiyon güncelleme uyarısı: {e}")
 
-FTP_HOST = _env.get("FTP_HOST", "31.186.11.163")
+FTP_HOST = _env.get("FTP_HOST", "")
 FTP_PORT = int(_env.get("FTP_PORT", "21"))
-FTP_USER = _env.get("FTP_USER", "aia321comtr")
+FTP_USER = _env.get("FTP_USER", "")
 FTP_PASS = _env.get("FTP_PASS", "")
 REMOTE_ROOT = _env.get("FTP_REMOTE_DIR", "/youtube.aiajan.com.tr").rstrip("/")
-DEPLOY_SECRET = _env.get("DEPLOY_SECRET", "k78Y2m9PqR1sT5vW4xZ8bA3cE6fH0jL2")
+DEPLOY_SECRET = _env.get("DEPLOY_SECRET", "")
 LIVE_URL = _env.get("LIVE_URL", "https://youtube.aiajan.com.tr")
 
-if not FTP_PASS:
-    print("❌ HATA: FTP_PASS tanımlı değil. Lütfen .env.deploy dosyasını kontrol edin.", file=sys.stderr)
-    sys.exit(1)
+for _req_key, _req_val in [("FTP_PASS", FTP_PASS), ("DEPLOY_SECRET", DEPLOY_SECRET), ("FTP_HOST", FTP_HOST)]:
+    if not _req_val:
+        print(f"❌ HATA: {_req_key} tanımlı değil. Lütfen .env.deploy dosyasını kontrol edin.", file=sys.stderr)
+        sys.exit(1)
 
 SYNC_DIRS = [
     "app",
@@ -229,25 +227,26 @@ def sync_remote_env(ftp: ftplib.FTP):
         "DB_HOST": "127.0.0.1",
         "DB_PORT": "1433",
         "DB_DATABASE": "youtube_db",
-        "DB_USERNAME": "youtubedb",
-        "DB_PASSWORD": '!?Uc8nu0YvHylad2',
+        "DB_USERNAME": _env.get("DB_USERNAME", ""),
+        "DB_PASSWORD": _env.get("DB_PASSWORD", ""),
         "DB_TRUST_SERVER_CERTIFICATE": "true",
         "SESSION_DRIVER": "file",
         "CACHE_STORE": "file",
         "QUEUE_CONNECTION": "sync",
-        "FIREBASE_API_KEY": "AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA",
-        "FIREBASE_PROJECT_ID": "aiajan-portfolio",
+        "FIREBASE_API_KEY": _env.get("FIREBASE_API_KEY", ""),
+        "FIREBASE_PROJECT_ID": _env.get("FIREBASE_PROJECT_ID", ""),
         "DEPLOY_SECRET": DEPLOY_SECRET,
     }
 
     changed = False
     for k, v in updates.items():
-        if env_dict.get(k) != v:
+        if v and env_dict.get(k) != v:
             env_dict[k] = v
             changed = True
 
-    if not env_dict.get("APP_KEY"):
-        env_dict["APP_KEY"] = "base64:uJwiipCjI67PdtT79IO36KQXfArQVc4FS2T4b2ZTeSc="
+    app_key = _env.get("APP_KEY", "")
+    if app_key and not env_dict.get("APP_KEY"):
+        env_dict["APP_KEY"] = app_key
         changed = True
 
     if changed:
@@ -289,16 +288,15 @@ def clear_remote_compiled_views(ftp: ftplib.FTP) -> tuple:
 
 
 def trigger_remote_artisan(command: str) -> dict:
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-
-    query = urllib.parse.urlencode({"token": DEPLOY_SECRET, "cmd": command})
-    url = f"{LIVE_URL}/_deploy/artisan?{query}"
-    req = urllib.request.Request(url, headers={"User-Agent": "YouTubeKesifDeployer/1.0"})
-
+    url = f"{LIVE_URL}/_deploy/artisan"
+    body = urllib.parse.urlencode({"token": DEPLOY_SECRET, "cmd": command}).encode("utf-8")
+    req = urllib.request.Request(
+        url, data=body,
+        headers={"User-Agent": "YouTubeKesifDeployer/1.0", "Content-Type": "application/x-www-form-urlencoded"},
+        method="POST"
+    )
     try:
-        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:
             data = resp.read().decode("utf-8")
             return json.loads(data)
     except Exception as e:
@@ -306,13 +304,9 @@ def trigger_remote_artisan(command: str) -> dict:
 
 
 def verify_live_site() -> tuple:
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-
     req = urllib.request.Request(LIVE_URL, headers={"User-Agent": "YouTubeKesifDeployer/1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=20, context=ctx) as resp:
+        with urllib.request.urlopen(req, timeout=20) as resp:
             status = resp.status
             body = resp.read().decode("utf-8", errors="ignore")
             has_brand = "Keşfet. Tanış. Bağ kur." in body or "YouTube" in body
