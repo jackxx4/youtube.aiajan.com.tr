@@ -57,10 +57,10 @@
   "resources/views/discovery/videos.blade.php": "2679_1794021548",
   "resources/views/admin/dashboard.blade.php": "1242_1794021548",
   "resources/views/profile/show.blade.php": "624_1794021548",
-  "resources/views/layouts/app.blade.php": "9959_1794028184",
+  "resources/views/layouts/app.blade.php": "19891_1794028729",
   "resources/views/channels/select.blade.php": "1201_1794021548",
   "routes/console.php": "210_1794021548",
   "routes/web.php": "3197_1794028116",
   "crates/youtube-sync/src/main.rs": "9580_1794024249",
-  "config/version.php": "144_1794028254"
+  "config/version.php": "150_1794028672"
 }
