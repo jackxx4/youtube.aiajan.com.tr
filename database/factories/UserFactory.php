@@ -17,7 +17,7 @@ class UserFactory extends Factory
             'google_sub' => (string) fake()->unique()->numberBetween(100000000, 999999999),
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'username' => Str::lower(fake()->unique()->userName()),
+            'username' => Str::lower(str_replace('.', '_', fake()->unique()->userName())),
             'status' => 'active',
         ];
     }

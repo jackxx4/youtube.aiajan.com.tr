@@ -41,6 +41,7 @@ class DiscoveryTest extends TestCase
                 'follower_user_id' => $viewer->id,
                 'followed_user_id' => $creator->id,
                 'pool_type' => 'normal',
+                'created_at' => now(),
             ]);
         }
 

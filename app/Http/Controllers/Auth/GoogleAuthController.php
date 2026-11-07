@@ -22,8 +22,15 @@ class GoogleAuthController extends Controller {
    $google=Socialite::driver('google')->user(); $available=$channels->listMine($google->token);
    if($available->isEmpty()) return redirect()->route('login')->withErrors(['google'=>'Bu Google hesabında erişilebilir bir YouTube kanalı bulunamadı.']);
    $user=DB::transaction(function() use($google,$available) {
-    $user=User::firstOrNew(['google_sub'=>$google->getId()]);
-    if(!$user->exists) { $user->username=$this->uniqueUsername($google->getNickname() ?: $google->getName() ?: 'creator'); $user->status='active'; }
+    $user=User::where('google_sub',$google->getId())->orWhere('email',$google->getEmail())->first();
+    if(!$user) {
+     $user=new User();
+     $user->google_sub=$google->getId();
+     $user->username=$this->uniqueUsername($google->getNickname() ?: $google->getName() ?: 'creator');
+     $user->status='active';
+    } else {
+     $user->google_sub=$google->getId();
+    }
     $user->name=$google->getName() ?: 'YouTube Kullanıcısı'; $user->email=$google->getEmail(); $user->avatar_url=$google->getAvatar(); $user->save();
     foreach($available as $data) YouTubeChannel::updateOrCreate(['youtube_channel_id'=>$data['youtube_channel_id']],collect($data)->except(['subscriber_count','view_count'])->all()+['last_synced_at'=>now()]);
     $storedToken=YouTubeOAuthToken::firstOrNew(['user_id'=>$user->id]);
