@@ -13,7 +13,7 @@
   "app/Models/YouTubeMetricMonthly.php": "388_1794021548",
   "app/Models/YouTubeOAuthToken.php": "420_1794021548",
   "app/Http/Middleware/EnsureAdmin.php": "348_1794021548",
-  "app/Http/Controllers/ChannelController.php": "2376_1794025016",
+  "app/Http/Controllers/ChannelController.php": "4238_1794027941",
   "app/Http/Controllers/Controller.php": "67_1794021548",
   "app/Http/Controllers/DashboardController.php": "792_1794021548",
   "app/Http/Controllers/DiscoveryController.php": "4582_1794021548",
