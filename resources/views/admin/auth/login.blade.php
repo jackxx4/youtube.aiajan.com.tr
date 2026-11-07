@@ -127,28 +127,7 @@
             border: 1px solid #285934;
             color: #b3e6c0;
         }
-        .info-box {
-            background: #1c1512;
-            border: 1px dashed var(--line);
-            border-radius: 12px;
-            padding: 14px 16px;
-            margin-top: 22px;
-            font-size: 12px;
-            color: var(--muted);
-            line-height: 1.55;
-            text-align: left;
-        }
-        .info-box strong {
-            color: #e7d8ca;
-        }
-        .info-box code {
-            background: #2f211b;
-            color: #e07050;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
-        }
+
         .back-link {
             display: inline-block;
             margin-top: 20px;
@@ -184,19 +163,19 @@
         @csrf
 
         <div class="field-group">
-            <label for="admin_email">Yönetici E-Postası veya Kullanıcı Adı</label>
+            <label for="admin_login">Yönetici Kullanıcı Adı veya E-Posta</label>
             <input type="text"
-                id="admin_email"
-                name="email"
+                id="admin_login"
+                name="login"
                 class="input-field"
-                placeholder="jackalxxxx4@gmail.com"
-                value="{{ old('email', 'jackalxxxx4@gmail.com') }}"
+                placeholder="Kullanıcı adı veya e-posta adresi"
+                value="{{ old('login', old('email')) }}"
                 required
                 autofocus>
         </div>
 
         <div class="field-group">
-            <label for="admin_password">Yönetici Şifresi</label>
+            <label for="admin_password">Yönetici Parolası</label>
             <input type="password"
                 id="admin_password"
                 name="password"
@@ -209,16 +188,6 @@
             Yönetim Merkezine Giriş Yap →
         </button>
     </form>
-
-    <!-- Yönetici Giriş Bilgisi Kutusu -->
-    <div class="info-box">
-        <div style="margin-bottom:4px;"><strong>🔑 Yönetici Erişim Bilgisi:</strong></div>
-        <div>Yönetici Hesabı: <code>jackalxxxx4@gmail.com</code></div>
-        <div style="margin-top:2px;">Varsayılan Parola: <code>AiajanAdmin2026!</code></div>
-        <div style="margin-top:6px;font-size:11px;color:#857368;">
-            (Parolanızı dilediğiniz zaman sunucudaki <code>.env</code> dosyasından <code>ADMIN_PASSWORD</code> ile değiştirebilirsiniz)
-        </div>
-    </div>
 
     <div style="text-align:center;">
         <a href="{{ route('home') }}" class="back-link">

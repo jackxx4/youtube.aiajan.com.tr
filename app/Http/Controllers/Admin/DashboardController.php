@@ -155,8 +155,8 @@ class DashboardController extends Controller
      */
     public function destroyUser(Request $request, User $user): RedirectResponse
     {
-        $currentAdmin = $request->user();
-        if ($currentAdmin->id === $user->id) {
+        $currentAdmin = $request->user('admin') ?? $request->user();
+        if ($currentAdmin && $currentAdmin instanceof User && $currentAdmin->id === $user->id) {
             return back()->withErrors(['admin' => 'Kendi yönetici hesabınızı silemezsiniz.']);
         }
 
@@ -174,6 +174,51 @@ class DashboardController extends Controller
         });
 
         return back()->with('status', "“{$userName}” kullanıcısı ve platformdaki tüm bağlı verileri başarıyla silindi.");
+    }
+
+    /**
+     * Bağlı YouTube kanalını ve tüm video, vitrin ve takip verilerini kalıcı olarak siler.
+     */
+    public function destroyChannel(Request $request, YouTubeChannel $channel): RedirectResponse
+    {
+        $channelTitle = $channel->title ?: $channel->youtube_channel_id;
+        $googleChannelId = $channel->youtube_channel_id;
+
+        DB::transaction(function () use ($channel, $googleChannelId) {
+            // 1. Bu kanala ait videoların ID listesini al
+            $videoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
+
+            // 2. Vitrindeki video seçimlerini temizle
+            if ($videoIds->isNotEmpty()) {
+                UserVideoSelection::whereIn('video_id', $videoIds)->delete();
+            }
+
+            // 3. Bu kanala ait videoları sil
+            Video::where('youtube_channel_id', $channel->id)->delete();
+
+            // 4. Bu kanala yapılan platform takiplerini sil
+            PlatformFollow::where('youtube_channel_id', $channel->id)->delete();
+
+            // 5. Kullanıcı-kanal eşleşmelerini sil
+            DB::table('user_channel_links')->where('youtube_channel_id', $channel->id)->delete();
+
+            // 6. Kullanıcıların google_channel_ids JSON dizisinden bu kanalı kaldır
+            if (!empty($googleChannelId)) {
+                $affectedUsers = User::whereNotNull('google_channel_ids')->get();
+                foreach ($affectedUsers as $u) {
+                    $ids = $u->google_channel_ids;
+                    if (is_array($ids) && in_array($googleChannelId, $ids, true)) {
+                        $newIds = array_values(array_filter($ids, fn($id) => $id !== $googleChannelId));
+                        $u->update(['google_channel_ids' => $newIds]);
+                    }
+                }
+            }
+
+            // 7. Kanal kaydını sil
+            $channel->delete();
+        });
+
+        return back()->with('status', "“{$channelTitle}” kanalı ve ilişkili tüm videolar platformdan başarıyla silindi.");
     }
 
     /**

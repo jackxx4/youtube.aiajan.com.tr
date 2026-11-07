@@ -150,5 +150,73 @@ class AdminDashboardTest extends TestCase
         $response->assertSessionHasErrors('admin');
         $this->assertDatabaseHas('users', ['id' => $admin->id]);
     }
+
+    public function test_isolated_admin_can_login_with_emrah_and_password(): void
+    {
+        $response = $this->post(route('admin.login.submit'), [
+            'login'    => 'emrah',
+            'password' => '985758',
+        ]);
+
+        $response->assertRedirect(route('admin.dashboard'));
+        $this->assertTrue(auth('admin')->check());
+        $this->assertEquals('emrah', auth('admin')->user()->username);
+    }
+
+    public function test_admin_can_delete_channel_and_its_associated_data(): void
+    {
+        $admin = \App\Models\Admin::firstOrCreate(
+            ['username' => 'emrah'],
+            [
+                'name'      => 'Emrah',
+                'email'     => 'emrah@aiajan.com.tr',
+                'password'  => Hash::make('985758'),
+                'role'      => 'super_admin',
+                'is_active' => true,
+            ]
+        );
+
+        $user = User::create([
+            'name'       => 'Test Üretici',
+            'email'      => 'uretici@example.com',
+            'username'   => 'uretici1',
+            'role'       => 'user',
+            'google_sub' => 'sub_uretici_1',
+        ]);
+
+        $channel = \App\Models\YouTubeChannel::create([
+            'youtube_channel_id' => 'UC_TEST_CHANNEL_DEL',
+            'title'              => 'Silinecek YouTube Kanalı',
+            'subscriber_count'   => 500,
+            'is_active'          => true,
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('user_channel_links')->insert([
+            'user_id'            => $user->id,
+            'youtube_channel_id' => $channel->id,
+            'started_at'         => now(),
+        ]);
+
+        $video = \App\Models\Video::create([
+            'youtube_video_id'   => 'v_del_12345',
+            'youtube_channel_id' => $channel->id,
+            'title'              => 'Silinecek Video',
+            'availability'       => 'available',
+        ]);
+
+        \App\Models\UserVideoSelection::create([
+            'user_id'  => $user->id,
+            'video_id' => $video->id,
+        ]);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->delete(route('admin.channels.destroy', $channel->id));
+
+        $response->assertSessionHas('status');
+        $this->assertDatabaseMissing('youtube_channels', ['id' => $channel->id]);
+        $this->assertDatabaseMissing('videos', ['id' => $video->id]);
+        $this->assertDatabaseMissing('user_video_selections', ['video_id' => $video->id]);
+        $this->assertDatabaseMissing('user_channel_links', ['youtube_channel_id' => $channel->id]);
+    }
 }
 

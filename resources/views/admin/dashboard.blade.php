@@ -153,10 +153,19 @@
                         <td style="padding:12px 8px;color:var(--muted);font-size:12px;">
                             {{ $ch->last_synced_at ? \Carbon\Carbon::parse($ch->last_synced_at)->diffForHumans() : '—' }}
                         </td>
-                        <td style="padding:12px 8px;text-align:right;">
-                            <a href="https://www.youtube.com/{{ $ch->custom_url ? ltrim($ch->custom_url, '/') : 'channel/' . $ch->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="padding:4px 10px;font-size:11px;">
-                                YouTube ↗
-                            </a>
+                        <td style="padding:12px 8px;text-align:right;white-space:nowrap;">
+                            <div style="display:inline-flex;gap:6px;align-items:center;">
+                                <a href="https://www.youtube.com/{{ $ch->custom_url ? ltrim($ch->custom_url, '/') : 'channel/' . $ch->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="padding:5px 10px;font-size:11px;">
+                                    YouTube ↗
+                                </a>
+                                <form method="POST" action="{{ route('admin.channels.destroy', $ch->id) }}" style="display:inline;" onsubmit="return confirm('“{{ addslashes($ch->title ?: $ch->youtube_channel_id) }}” kanalını ve bu kanala ait tüm videoları platformdan kalıcı olarak silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz!');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn secondary" style="padding:5px 10px;font-size:11px;color:#fff;background:#c93b2b;border-color:#c93b2b;cursor:pointer;" title="Kanalı Kalıcı Olarak Sil">
+                                        🗑️ Kanalı Sil
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     @empty

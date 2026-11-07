@@ -111,9 +111,18 @@
                         <td style="padding:12px 8px;color:var(--ink);max-width:240px;word-break:break-all;">{{ $u->email }}</td>
                         <td style="padding:12px 8px;">
                             @if($u->activeChannelLink?->channel)
-                                <a href="https://www.youtube.com/{{ $u->activeChannelLink->channel->custom_url ? ltrim($u->activeChannelLink->channel->custom_url, '/') : 'channel/' . $u->activeChannelLink->channel->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" style="color:var(--rust);font-weight:600;text-decoration:underline;">
-                                    📺 {{ $u->activeChannelLink->channel->title }}
-                                </a>
+                                <div style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                    <a href="https://www.youtube.com/{{ $u->activeChannelLink->channel->custom_url ? ltrim($u->activeChannelLink->channel->custom_url, '/') : 'channel/' . $u->activeChannelLink->channel->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" style="color:var(--rust);font-weight:600;text-decoration:underline;">
+                                        📺 {{ Str::limit($u->activeChannelLink->channel->title, 24) }}
+                                    </a>
+                                    <form method="POST" action="{{ route('admin.channels.destroy', $u->activeChannelLink->channel->id) }}" style="display:inline;" onsubmit="return confirm('“{{ addslashes($u->activeChannelLink->channel->title) }}” kanalını ve tüm videolarını silmek istediğinize emin misiniz?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn secondary" style="padding:2px 6px;font-size:10px;color:#c93b2b;border-color:#f5c6cb;background:#fff5f5;" title="Kanalı Sil">
+                                            🗑️ Kanalı Sil
+                                        </button>
+                                    </form>
+                                </div>
                             @else
                                 <span class="muted">—</span>
                             @endif
@@ -136,7 +145,10 @@
                             {{ $u->created_at?->format('d.m.Y H:i') ?? '—' }}
                         </td>
                         <td style="padding:12px 8px;text-align:right;white-space:nowrap;">
-                            @if(auth()->id() === $u->id)
+                            @php
+                                $isCurrentAdminSelf = (!Auth::guard('admin')->check() && auth()->id() === $u->id);
+                            @endphp
+                            @if($isCurrentAdminSelf)
                                 <span class="muted" style="font-size:12px;font-weight:600;">(Siz)</span>
                             @else
                                 <div style="display:inline-flex;gap:6px;align-items:center;">

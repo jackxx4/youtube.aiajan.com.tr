@@ -14,6 +14,7 @@ class Admin extends Authenticatable
 
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
         'role',
@@ -40,4 +41,3 @@ class Admin extends Authenticatable
         return $this->role === 'super_admin';
     }
 }
-

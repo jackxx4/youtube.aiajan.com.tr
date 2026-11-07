@@ -82,6 +82,7 @@ Route::prefix('yonetim')->name('admin.')->group(function () {
         Route::post('/kullanici/{user}/rol', [AdminDashboardController::class, 'toggleRole'])->name('users.toggle_role');
         Route::post('/kullanici/{user}/durum', [AdminDashboardController::class, 'toggleStatus'])->name('users.toggle_status');
         Route::delete('/kullanici/{user}', [AdminDashboardController::class, 'destroyUser'])->name('users.destroy');
+        Route::delete('/kanal/{channel}', [AdminDashboardController::class, 'destroyChannel'])->name('channels.destroy');
         Route::post('/onbellek-temizle', [AdminDashboardController::class, 'clearCache'])->name('clear_cache');
     });
 });
