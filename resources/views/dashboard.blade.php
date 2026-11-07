@@ -278,29 +278,7 @@
         </div>
     @endif
 
-    <!-- 7. KEŞİF HAVUZLARI HIZLI ERİŞİM KARTLARI -->
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px;">
-        <div class="card" style="padding:22px;">
-            <div class="eyebrow">Normal Havuz</div>
-            <h3 style="font:22px 'DM Serif Display',serif;margin:4px 0 6px;color:var(--wine);">Üreticileri Keşfet</h3>
-            <p class="muted" style="font-size:13px;margin-bottom:14px;">10 profil arasından 3 üreticiyi platformda takip et.</p>
-            <a href="{{ route('discovery.users','normal') }}" class="btn secondary" style="padding:8px 14px;font-size:13px;">Normal Keşif →</a>
-        </div>
-        <div class="card" style="padding:22px;">
-            <div class="eyebrow">Destekçi Havuzu</div>
-            <h3 style="font:22px 'DM Serif Display',serif;margin:4px 0 6px;color:var(--wine);">Destekçileri Keşfet</h3>
-            <p class="muted" style="font-size:13px;margin-bottom:14px;">Aktif destekçi üreticilerin yer aldığı öncelikli havuz.</p>
-            <a href="{{ route('discovery.users','supporter') }}" class="btn secondary" style="padding:8px 14px;font-size:13px;">Destekçi Keşfi →</a>
-        </div>
-        <div class="card" style="padding:22px;">
-            <div class="eyebrow">Sıralı Video Havuzu</div>
-            <h3 style="font:22px 'DM Serif Display',serif;margin:4px 0 6px;color:var(--wine);">Videoları Keşfet</h3>
-            <p class="muted" style="font-size:13px;margin-bottom:14px;">Diğer üreticilerin vitrin videolarını sırayla izle.</p>
-            <a href="{{ route('discovery.videos') }}" class="btn secondary" style="padding:8px 14px;font-size:13px;">Sıralı Oynatıcı →</a>
-        </div>
-    </div>
-
-    <!-- 8. ŞEFFAFLIK VE ORGANİK TOPLULUK İLKESİ -->
+    <!-- 7. ŞEFFAFLIK VE ORGANİK TOPLULUK İLKESİ -->
     <div class="card" style="background:#f7efe5;border:1px solid #e7d8ca;padding:18px 22px;">
         <div style="display:flex;gap:12px;align-items:flex-start;">
             <span style="font-size:22px;line-height:1;">🛡️</span>

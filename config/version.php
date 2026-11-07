@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'current' => '1.6.0',
-    'release_name' => 'Sıralı Video Keşfi Düzeltildi, Tekrarlı Butonlar Kaldırıldı, Yönetim Girişi Bağımsızlaştırıldı',
-    'updated_at' => '2026-11-07T21:30:00',
+    'current' => '1.6.1',
+    'release_name' => 'Genel Bakıştan Mükerrer Havuz Kartları Kaldırıldı',
+    'updated_at' => '2026-11-07T21:45:00',
 ];
