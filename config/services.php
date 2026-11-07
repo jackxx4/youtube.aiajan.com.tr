@@ -14,8 +14,8 @@ return [
         'api_key' => env('YOUTUBE_API_KEY', 'AIzaSy_REDACTED_LEAKED_KEY'),
     ],
     'firebase' => [
-        'api_key' => env('FIREBASE_API_KEY', 'AIzaSyCo1tR3DzrC0cmh5nBCLV9wC4i8uLox9SI'),
-        'project_id' => env('FIREBASE_PROJECT_ID', 'aiajan-youtube'),
-        'auth_domain' => env('FIREBASE_AUTH_DOMAIN', 'aiajan-youtube.firebaseapp.com'),
+        'api_key' => env('FIREBASE_API_KEY', 'AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA'),
+        'project_id' => env('FIREBASE_PROJECT_ID', 'aiajan-portfolio'),
+        'auth_domain' => env('FIREBASE_AUTH_DOMAIN', 'aiajan-portfolio.firebaseapp.com'),
     ],
 ];
