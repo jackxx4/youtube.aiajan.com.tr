@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'current' => '1.5.9',
-    'release_name' => 'Genel Bakış ve Profil Birleştirildi, Sıralı Video Keşfi ve Yönetim Ayrıldı',
-    'updated_at' => '2026-11-07T20:30:00',
+    'current' => '1.6.0',
+    'release_name' => 'Sıralı Video Keşfi Düzeltildi, Tekrarlı Butonlar Kaldırıldı, Yönetim Girişi Bağımsızlaştırıldı',
+    'updated_at' => '2026-11-07T21:30:00',
 ];

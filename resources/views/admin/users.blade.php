@@ -12,9 +12,15 @@
             <a href="{{ route('admin.dashboard') }}" class="btn secondary" style="padding:10px 16px;font-size:13px;">
                 <span>← Yönetim Genel Bakış</span>
             </a>
-            <a href="{{ route('dashboard') }}" class="btn" style="padding:10px 16px;font-size:13px;">
-                <span>Panoya Dön</span>
+            <a href="{{ route('dashboard') }}" class="btn secondary" style="padding:10px 16px;font-size:13px;">
+                <span>Kullanıcı Paneline Geç</span>
             </a>
+            <form method="POST" action="{{ route('admin.logout') }}" style="display:inline;">
+                @csrf
+                <button type="submit" class="btn" style="padding:10px 16px;font-size:13px;background:var(--wine);">
+                    <span>🚪 Yönetici Çıkışı</span>
+                </button>
+            </form>
         </div>
     </div>
 

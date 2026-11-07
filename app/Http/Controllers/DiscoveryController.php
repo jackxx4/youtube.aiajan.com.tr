@@ -40,25 +40,23 @@ class DiscoveryController extends Controller {
   return redirect()->route('discovery.users',$pool)->with('status','Platform takipleriniz kaydedildi.');
  }
  public function videos(Request $request): View {
-  $user=$request->user();
-  $selected=session('selected_video_ids');
   try {
-   if(is_array($selected) && !empty($selected)) {
-    $videos=Video::with('channel')
-     ->whereIn('id',$selected)
-     ->where('availability','available')
-     ->get();
-   } else {
-    $videos=Video::with('channel')
-     ->where('availability','available')
-     ->inRandomOrder()
-     ->limit(10)
-     ->get();
-   }
+   $videos = Video::with('channel')
+    ->where('availability', 'available')
+    ->inRandomOrder()
+    ->limit(10)
+    ->get();
   } catch (\Throwable $e) {
-   $videos=collect();
+   $videos = collect();
   }
-  return view('discovery.videos',compact('videos','selected'));
+
+  $playlist = $videos->map(fn($v) => [
+   'id'      => (string) $v->youtube_video_id,
+   'title'   => (string) $v->title,
+   'channel' => (string) ($v->channel?->title ?? 'YouTube Kanalı'),
+  ])->values()->all();
+
+  return view('discovery.videos', compact('videos', 'playlist'));
  }
 
  public function selectVideos(Request $request): RedirectResponse {

@@ -31,18 +31,16 @@
                     @endif
                 </div>
 
-                <!-- Aksiyon Butonları -->
+                <!-- Aksiyon Butonları (Yalnızca Vitrin ve eksikse Kanal Bağla) -->
                 <div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
-                    <a href="{{ route('channels.select') }}" class="btn secondary" style="padding:9px 16px;font-size:13px;">
-                        {{ $channel ? '⚙️ Kanalı Değiştir' : '➕ Kanal Bağla' }}
-                    </a>
-                    <a href="{{ route('videos.showcase') }}" class="btn" style="padding:9px 16px;font-size:13px;background:var(--wine);">
+                    @if(!$channel)
+                        <a href="{{ route('channels.select') }}" class="btn" style="padding:9px 16px;font-size:13px;">
+                            ➕ Kanal Bağla
+                        </a>
+                    @endif
+                    <a href="{{ route('videos.showcase') }}" class="btn secondary" style="padding:9px 16px;font-size:13px;">
                         ✨ Video Vitrinim
                     </a>
-                    <form method="post" action="{{ route('logout') }}" style="display:inline;">
-                        @csrf
-                        <button class="btn secondary" type="submit" style="padding:9px 14px;font-size:13px;background:transparent;border:1px solid var(--line);">Çıkış</button>
-                    </form>
                 </div>
             </div>
 

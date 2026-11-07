@@ -141,11 +141,7 @@
         <script>
         (function() {
             // PHP'den güvenli şekilde aktarılan video dizisi
-            const playlist = @json($videos->map(fn($v) => [
-                'id'       => $v->youtube_video_id,
-                'title'    => $v->title,
-                'channel'  => $v->channel?->title ?? 'YouTube Kanalı',
-            ])->values());
+            const playlist = {!! json_encode($playlist ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) !!};
 
             let currentIndex = 0;
             let autoAdvance = true;

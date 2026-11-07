@@ -1,4 +1,5 @@
 <?php
+use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\ChannelController;
@@ -67,12 +68,20 @@ Route::middleware('auth')->group(function(){
  Route::post('/vitrinim/sifirla',[VideoShowcaseController::class,'clearAll'])->name('videos.showcase.clear');
  Route::post('/vitrinim/senkronize',[VideoShowcaseController::class,'syncChannelVideos'])->name('videos.showcase.sync');
  Route::post('/vitrinim/video-ekle',[VideoShowcaseController::class,'addVideoByUrl'])->name('videos.showcase.add_url');
- Route::prefix('yonetim')->name('admin.')->middleware('admin')->group(function () {
-     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
-     Route::get('/kullanicilar', [AdminDashboardController::class, 'users'])->name('users');
-     Route::post('/kullanici/{user}/rol', [AdminDashboardController::class, 'toggleRole'])->name('users.toggle_role');
-     Route::post('/kullanici/{user}/durum', [AdminDashboardController::class, 'toggleStatus'])->name('users.toggle_status');
-     Route::delete('/kullanici/{user}', [AdminDashboardController::class, 'destroyUser'])->name('users.destroy');
-     Route::post('/onbellek-temizle', [AdminDashboardController::class, 'clearCache'])->name('clear_cache');
- });
+});
+
+// Bağımsız Yönetici Alanı (Google Girişinden Bağımsız)
+Route::prefix('yonetim')->name('admin.')->group(function () {
+    Route::get('/giris', [AdminAuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/giris', [AdminAuthController::class, 'login'])->name('login.submit');
+    Route::post('/cikis', [AdminAuthController::class, 'logout'])->name('logout');
+
+    Route::middleware('admin')->group(function () {
+        Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/kullanicilar', [AdminDashboardController::class, 'users'])->name('users');
+        Route::post('/kullanici/{user}/rol', [AdminDashboardController::class, 'toggleRole'])->name('users.toggle_role');
+        Route::post('/kullanici/{user}/durum', [AdminDashboardController::class, 'toggleStatus'])->name('users.toggle_status');
+        Route::delete('/kullanici/{user}', [AdminDashboardController::class, 'destroyUser'])->name('users.destroy');
+        Route::post('/onbellek-temizle', [AdminDashboardController::class, 'clearCache'])->name('clear_cache');
+    });
 });
