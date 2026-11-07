@@ -17,6 +17,7 @@ Route::get('/api/version', fn() => response()->json([
 ]))->name('api.version');
 
 Route::get('/',fn()=>view('welcome'))->name('home');
+Route::get('/gizlilik',fn()=>view('gizlilik'))->name('privacy');
 Route::get('/giris',fn()=>view('auth.login'))->name('login');
 Route::get('/auth/google',[GoogleAuthController::class,'redirect'])->name('auth.google');
 Route::get('/auth/google/callback',[GoogleAuthController::class,'callback'])->name('auth.google.callback');
