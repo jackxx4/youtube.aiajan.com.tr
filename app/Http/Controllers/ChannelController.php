@@ -18,18 +18,25 @@ class ChannelController extends Controller
 {
     public function index(Request $request, YouTubeChannelService $channelsService): View|RedirectResponse
     {
-        $active = $request->user()->activeChannelLink()->with('channel')->first();
-        $ids = session('available_youtube_channels', []);
+        $user = $request->user();
+        $active = $user->activeChannelLink()->with('channel')->first();
 
-        // Session'da liste yoksa kullanıcının kayıtlı OAuth token'ı varsa kanalları çekmeyi dene
+        // 1. Kullanıcının oturumundaki, profiline kayıtlı ve geçmişte bağladığı tüm kanalları topla
+        $sessionIds = (array) session('available_youtube_channels', []);
+        $storedIds = (array) ($user->google_channel_ids ?? []);
+        $linkedIds = $user->channelLinks()->with('channel')->get()->pluck('channel.youtube_channel_id')->filter()->all();
+        $ids = array_values(array_unique(array_filter(array_merge($sessionIds, $storedIds, $linkedIds))));
+
+        // 2. Eğer kayıtlı liste yoksa kullanıcının OAuth token'ı üzerinden kanalları çekmeyi dene
         if (empty($ids)) {
-            $token = $request->user()->oauthToken;
+            $token = $user->oauthToken;
             if ($token && $token->access_token_enc) {
                 try {
                     $decryptedToken = Crypt::decryptString($token->access_token_enc);
                     $fetched = $channelsService->listMine($decryptedToken);
                     if ($fetched->isNotEmpty()) {
-                        $ids = $fetched->pluck('youtube_channel_id')->all();
+                        $newIds = $fetched->pluck('youtube_channel_id')->all();
+                        $ids = array_values(array_unique(array_merge($ids, $newIds)));
                         session(['available_youtube_channels' => $ids]);
                         foreach ($fetched as $data) {
                             $item = (array) $data;
@@ -38,7 +45,7 @@ class ChannelController extends Controller
                                 collect($item)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
                             );
                         }
-                        $request->user()->update(['google_channel_ids' => $ids]);
+                        $user->update(['google_channel_ids' => $ids]);
                     }
                 } catch (\Throwable $e) {
                     report($e);
@@ -73,22 +80,27 @@ class ChannelController extends Controller
                 ]);
             }
 
-            $ids = [];
+            $newIds = [];
             foreach ($fetched as $data) {
                 YouTubeChannel::updateOrCreate(
                     ['youtube_channel_id' => $data['youtube_channel_id']],
                     collect($data)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
                 );
-                $ids[] = $data['youtube_channel_id'];
+                $newIds[] = $data['youtube_channel_id'];
             }
 
-            session(['available_youtube_channels' => $ids]);
-            $request->user()->update(['google_channel_ids' => $ids]);
+            $currentIds = (array) ($request->user()->google_channel_ids ?? []);
+            $mergedIds = array_values(array_unique(array_filter(array_merge($currentIds, $newIds))));
+
+            session(['available_youtube_channels' => $mergedIds]);
+            $request->user()->update(['google_channel_ids' => $mergedIds]);
+
+            $allChannels = YouTubeChannel::whereIn('youtube_channel_id', $mergedIds)->orderBy('title')->get();
 
             return response()->json([
                 'success' => true,
-                'channels' => $fetched->values(),
-                'message' => count($ids) . ' YouTube kanalı başarıyla listelendi!'
+                'channels' => $allChannels->values(),
+                'message' => count($allChannels) . ' YouTube kanalı başarıyla listelendi!'
             ]);
         } catch (\Throwable $e) {
             report($e);
