@@ -63,9 +63,8 @@
 - `addVideoByUrl()` → oEmbed `author_name` ile kanal başlığı karşılaştırılarak sahiplik doğrulanır.
 
 ### 2.3 Kanal Değişimi
-- Kullanıcı aktif kanalını **30 gün** geçmeden değiştiremez.
-- `DashboardController::$canChangeChannel` → `$activeLink->started_at->lte(now()->subDays(30))`.
-- Bu kural `ChannelController::store()` ve `index()`'te de uygulanır.
+- Kanal değişimi her zaman açıktır (`$canChangeChannel = true`).
+- 30 gün kısıtlaması kaldırıldı.
 
 ### 2.4 Session ve DB Transaction Sıralaması
 - `session()` yazma işlemleri DB transaction **dışında** yapılmalıdır:
