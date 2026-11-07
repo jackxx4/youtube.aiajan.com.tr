@@ -50,7 +50,7 @@
 
     const firebaseConfig = {
         apiKey: "{{ config('services.firebase.api_key') }}",
-        authDomain: "{{ config('services.firebase.project_id', 'aiajan-youtube') }}.firebaseapp.com",
+        authDomain: "{{ config('services.firebase.auth_domain', config('services.firebase.project_id', 'aiajan-youtube') . '.firebaseapp.com') }}",
         projectId: "{{ config('services.firebase.project_id', 'aiajan-youtube') }}",
         storageBucket: "{{ config('services.firebase.project_id', 'aiajan-youtube') }}.firebasestorage.app"
     };
