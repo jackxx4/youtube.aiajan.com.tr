@@ -14,6 +14,6 @@ class HomePageTest extends TestCase {
   $this->get('/iletisim')->assertOk()->assertSee('İletişim');
  }
  public function test_deploy_artisan_endpoint_is_forbidden_without_token(): void {
-  $this->get('/_deploy/artisan')->assertForbidden();
+  $this->post('/_deploy/artisan')->assertForbidden();
  }
 }
