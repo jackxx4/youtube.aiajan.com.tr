@@ -28,7 +28,7 @@ class GoogleAuthController extends Controller
                 ->with(['access_type' => 'offline', 'prompt' => 'consent select_account'])
                 ->redirect();
         } catch (\Throwable $e) {
-            // Socialite kimlik bilgileri tanımlı değilse doğrudan Firebase Google Auth pop-up'ına yönlendir
+            report($e);
             return redirect()->route('login', ['auto' => 'google']);
         }
     }
@@ -114,6 +114,9 @@ class GoogleAuthController extends Controller
         }
 
         $googleSub = $firebaseUser['uid'];
+        if (!$googleSub) {
+            return response()->json(['success' => false, 'message' => 'Geçersiz kimlik bilgisi.'], 401);
+        }
         $email = $firebaseUser['email'];
         $name = $firebaseUser['name'] ?: ($firebaseUser['email'] ? explode('@', $firebaseUser['email'])[0] : 'YouTube Üreticisi');
         $avatar = $firebaseUser['photo'] ?? null;
@@ -192,7 +195,7 @@ class GoogleAuthController extends Controller
 
     private function verifyFirebaseToken(string $idToken): ?array
     {
-        $apiKey = config('services.firebase.api_key') ?: env('FIREBASE_API_KEY') ?: 'AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA';
+        $apiKey = config('services.firebase.api_key') ?: env('FIREBASE_API_KEY');
         if (empty($apiKey) || empty($idToken)) {
             return null;
         }

@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'current' => '1.2.2',
-    'release_name' => 'Veritabanı Tablo Adı Uyumlaştırması (youtube_oauth_tokens)',
-    'updated_at' => '2026-11-07T08:37:00',
+    'current' => '1.3.0',
+    'release_name' => 'Zenginleştirilmiş Profil Arayüzü & Google Kanal Seçimi',
+    'updated_at' => '2026-11-07T08:46:00',
 ];

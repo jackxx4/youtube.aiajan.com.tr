@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\UserChannelLink;
 use App\Models\YouTubeChannel;
 use App\Services\YouTubeChannelService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -52,6 +53,48 @@ class ChannelController extends Controller
         return view('channels.select', compact('channels', 'active'));
     }
 
+    /**
+     * Google OAuth penceresinden gelen erişim belirteci ile kullanıcının YouTube kanallarını çeker.
+     */
+    public function syncGoogleChannels(Request $request, YouTubeChannelService $channelsService): JsonResponse
+    {
+        $accessToken = (string) $request->input('accessToken');
+        if (empty($accessToken)) {
+            return response()->json(['success' => false, 'message' => 'Yetkilendirme belirteci bulunamadı.'], 422);
+        }
+
+        try {
+            $fetched = $channelsService->listMine($accessToken);
+
+            if ($fetched->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bu Google hesabına bağlı herhangi bir YouTube kanalı bulunamadı veya yetki verilmedi.'
+                ]);
+            }
+
+            $ids = [];
+            foreach ($fetched as $data) {
+                YouTubeChannel::updateOrCreate(
+                    ['youtube_channel_id' => $data['youtube_channel_id']],
+                    collect($data)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
+                );
+                $ids[] = $data['youtube_channel_id'];
+            }
+
+            session(['available_youtube_channels' => $ids]);
+
+            return response()->json([
+                'success' => true,
+                'channels' => $fetched->values(),
+                'message' => count($ids) . ' YouTube kanalı başarıyla listelendi!'
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['success' => false, 'message' => 'Kanallar çekilirken hata oluştu: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $user = $request->user();
@@ -68,7 +111,7 @@ class ChannelController extends Controller
 
             if (!$resolved || empty($resolved['channel_id'])) {
                 return back()->withErrors([
-                    'channel_input' => 'YouTube kanalı tespit edilemedi. Lütfen geçerli bir kanal kullanıcı adı (@kanaladi) veya kanal linki girin.'
+                    'channel_input' => 'YouTube kanalı tespit edilemedi. Lütfen geçerli bir kanal kullanıcı adı (@kanaladi) veya linki girin.'
                 ])->withInput();
             }
 
@@ -143,7 +186,7 @@ class ChannelController extends Controller
             return redirect()->route('dashboard')->with('status', 'YouTube kanalınız başarıyla bağlandı.');
         }
 
-        return back()->withErrors(['channel_input' => 'Lütfen bağlamak istediğiniz YouTube kanalının kullanıcı adını (@kanaladi) veya bağlantısını girin.']);
+        return back()->withErrors(['channel_input' => 'Lütfen bağlamak istediğiniz YouTube kanalını seçin veya kullanıcı adını girin.']);
     }
 
     /**
@@ -156,7 +199,6 @@ class ChannelController extends Controller
             return null;
         }
 
-        // URL normalizasyonu
         if (str_starts_with($input, '@')) {
             $url = 'https://www.youtube.com/' . $input;
             $customUrl = $input;
@@ -187,15 +229,12 @@ class ChannelController extends Controller
             return null;
         }
 
-        // Başlık
         preg_match('/<meta property="og:title" content="([^"]+)"/', $html, $mTitle);
         $title = $mTitle[1] ?? null;
 
-        // Avatar
         preg_match('/<meta property="og:image" content="([^"]+)"/', $html, $mImage);
         $thumbnailUrl = $mImage[1] ?? null;
 
-        // Kanal ID
         preg_match('/channel_id=([a-zA-Z0-9_-]+)/', $html, $mChan);
         $channelId = $mChan[1] ?? null;
 

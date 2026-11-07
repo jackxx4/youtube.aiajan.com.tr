@@ -132,7 +132,6 @@ class SyncYouTubeChannels extends Command
                     'maxResults' => 3,
                 ]);
 
-                $videoIds = [];
                 foreach ($playlist->getItems() as $entry) {
                     $snippet = $entry->getSnippet();
                     $video = $entry->getContentDetails();
@@ -141,7 +140,6 @@ class SyncYouTubeChannels extends Command
                         continue;
                     }
 
-                    $videoIds[] = $id;
                     $thumbnailUrl = $snippet?->getThumbnails()?->getMedium()?->getUrl()
                         ?? $snippet?->getThumbnails()?->getDefault()?->getUrl();
 
