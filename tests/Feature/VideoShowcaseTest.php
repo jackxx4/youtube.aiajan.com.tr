@@ -139,3 +139,4 @@ class VideoShowcaseTest extends TestCase
         $this->assertEquals(0, UserVideoSelection::where('user_id', $this->user->id)->count());
     }
 }
+

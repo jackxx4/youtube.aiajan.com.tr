@@ -62,7 +62,7 @@
   "routes/console.php": "210_1794021548",
   "routes/web.php": "4592_1794037623",
   "crates/youtube-sync/src/main.rs": "9580_1794024249",
-  "config/version.php": "198_1794037796",
+  "config/version.php": "173_1794038514",
   "app/Models/UserVideoSelection.php": "413_1794030457",
   "app/Http/Controllers/VideoShowcaseController.php": "11868_1794037607",
   "database/migrations/2026_11_07_000001_create_user_video_selections_table.php": "701_1794030453",
@@ -72,5 +72,6 @@
   "resources/views/cerez.blade.php": "6439_1794034535",
   "resources/views/iletisim.blade.php": "7586_1794034535",
   "resources/views/kvkk.blade.php": "8229_1794034535",
-  "database/migrations/2026_11_07_000002_add_google_channel_ids_to_users.php": "520_1794037569"
+  "database/migrations/2026_11_07_000002_add_google_channel_ids_to_users.php": "520_1794037569",
+  "database/migrations/2026_11_07_000003_fix_mssql_cascade_constraints.php": "1436_1794038507"
 }
