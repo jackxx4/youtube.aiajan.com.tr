@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'current' => '1.6.3',
-    'release_name' => 'Tek Parça Profil, 10 Kanal/Video Seçimi ve Çoklu Kanal Keşif Havuzu',
-    'updated_at' => '2026-11-07T22:30:00',
+    'current' => '1.6.4',
+    'release_name' => 'Kanal Başına 3 Video Havuzu, Günlük 3 Takip ve Kendi Videolarını Görememe Kuralı',
+    'updated_at' => '2026-11-07T23:00:00',
 ];

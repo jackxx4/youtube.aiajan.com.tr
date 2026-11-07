@@ -57,6 +57,17 @@ class ChannelController extends Controller
             ? YouTubeChannel::whereIn('youtube_channel_id', $ids)->orderBy('title')->get()
             : collect();
 
+        foreach ($channels as $ch) {
+            $chVideoIds = Video::where('youtube_channel_id', $ch->id)->pluck('id');
+            $ch->showcase_count = UserVideoSelection::where('user_id', $user->id)
+                ->where(function ($q) use ($ch, $chVideoIds) {
+                    $q->where('youtube_channel_id', $ch->id)
+                      ->orWhereIn('video_id', $chVideoIds);
+                })
+                ->count();
+            $ch->is_active = $active && $active->youtube_channel_id === $ch->id;
+        }
+
         return view('channels.select', compact('channels', 'active'));
     }
 
@@ -147,9 +158,8 @@ class ChannelController extends Controller
                         return;
                     }
 
-                    // Önceki tüm aktif bağları kapat ve eski vitrin seçimlerini temizle
+                    // Önceki tüm aktif bağları kapat (ancak diğer kanallara ait vitrin seçimlerini SAKLA)
                     UserChannelLink::where('user_id', $user->id)->whereNull('ended_at')->update(['ended_at' => now()]);
-                    UserVideoSelection::where('user_id', $user->id)->delete();
 
                     UserChannelLink::create([
                         'user_id' => $user->id,
@@ -176,7 +186,19 @@ class ChannelController extends Controller
             }
 
             session()->forget('available_youtube_channels');
-            return redirect()->route('videos.showcase')->with('status', 'YouTube kanalınız bağlandı! Şimdi vitrine eklenecek videolarınızı seçin.');
+
+            $channelVideoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
+            $showcaseCount = UserVideoSelection::where('user_id', $user->id)
+                ->where(function ($q) use ($channel, $channelVideoIds) {
+                    $q->where('youtube_channel_id', $channel->id)
+                      ->orWhereIn('video_id', $channelVideoIds);
+                })->count();
+
+            if ($showcaseCount === 3) {
+                return redirect()->route('dashboard')->with('status', '“' . $channel->title . '” kanalınız aktif edildi. Bu kanalın 3 videosu zaten havuzda yayında.');
+            }
+
+            return redirect()->route('videos.showcase')->with('status', '“' . $channel->title . '” YouTube kanalınız bağlandı! Kanalınızın keşif havuzunda yer alması için lütfen son 10 videodan 3 tanesini seçin.');
         }
 
         // 2. Yöntem: Listeden veya profilden kanal seçilmişse
@@ -200,9 +222,8 @@ class ChannelController extends Controller
                         return;
                     }
 
-                    // Önceki tüm aktif bağları kapat ve eski vitrin seçimlerini temizle
+                    // Önceki tüm aktif bağları kapat (ancak diğer kanallara ait vitrin seçimlerini SAKLA)
                     UserChannelLink::where('user_id', $user->id)->whereNull('ended_at')->update(['ended_at' => now()]);
-                    UserVideoSelection::where('user_id', $user->id)->delete();
 
                     UserChannelLink::create([
                         'user_id' => $user->id,
@@ -227,7 +248,19 @@ class ChannelController extends Controller
             }
 
             session()->forget('available_youtube_channels');
-            return redirect()->route('videos.showcase')->with('status', 'YouTube kanalınız bağlandı! Şimdi vitrine eklenecek videolarınızı seçin.');
+
+            $channelVideoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
+            $showcaseCount = UserVideoSelection::where('user_id', $user->id)
+                ->where(function ($q) use ($channel, $channelVideoIds) {
+                    $q->where('youtube_channel_id', $channel->id)
+                      ->orWhereIn('video_id', $channelVideoIds);
+                })->count();
+
+            if ($showcaseCount === 3) {
+                return redirect()->route('dashboard')->with('status', '“' . $channel->title . '” kanalınız aktif edildi. Bu kanalın 3 videosu zaten havuzda yayında.');
+            }
+
+            return redirect()->route('videos.showcase')->with('status', '“' . $channel->title . '” kanalınız aktif edildi. Bu kanalınızın keşif havuzuna dahil olması için lütfen son 10 videodan 3 tanesini seçin.');
         }
 
         return back()->withErrors(['channel_input' => 'Lütfen bağlamak istediğiniz YouTube kanalını seçin veya kullanıcı adını girin.']);

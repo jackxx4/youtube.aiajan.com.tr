@@ -25,8 +25,34 @@
         </div>
     </div>
 
+    <!-- Birden Fazla Kanal Varsa Vitrin Kanalı Değiştirici -->
+    @if(isset($userChannels) && $userChannels->count() > 1)
+        <div class="card" style="margin:16px 0 20px;padding:12px 18px;background:#fdfcf9;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border:1px solid var(--line);">
+            <div style="font-size:13px;font-weight:600;color:var(--wine);display:flex;align-items:center;gap:6px;">
+                <span>📺 Vitrinini Yönettiğiniz Kanal:</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                @foreach($userChannels as $uc)
+                    @if($uc->id === $channel->id)
+                        <span style="padding:5px 12px;border-radius:20px;background:var(--rust);color:#fff;font-size:12px;font-weight:700;">
+                            ● {{ $uc->title }} (Aktif Vitrin)
+                        </span>
+                    @else
+                        <form method="POST" action="{{ route('channels.store') }}" style="margin:0;display:inline;">
+                            @csrf
+                            <input type="hidden" name="channel_id" value="{{ $uc->youtube_channel_id }}">
+                            <button type="submit" class="btn secondary" style="padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;">
+                                {{ $uc->title }} ({{ $uc->showcase_count ?? 0 }}/3) →
+                            </button>
+                        </form>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <!-- Bağlı Kanal Bilgi Şeridi -->
-    <div class="card" style="margin:20px 0 28px;padding:14px 20px;background:#fbf7f2;border-left:4px solid var(--rust);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;">
+    <div class="card" style="margin:0 0 28px;padding:14px 20px;background:#fbf7f2;border-left:4px solid var(--rust);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;">
         <div style="display:flex;align-items:center;gap:12px;">
             @if($channel->thumbnail_url)
                 <img src="{{ $channel->thumbnail_url }}" alt="{{ $channel->title }}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid var(--line);">

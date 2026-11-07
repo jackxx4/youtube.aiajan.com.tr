@@ -119,5 +119,43 @@ class DiscoveryChannelTest extends TestCase
 
         $response->assertSessionHasErrors('error');
     }
+
+    public function test_daily_follow_limit_is_strictly_enforced_at_3(): void
+    {
+        // İlk 3 kanal takip edildi
+        PlatformFollow::create([
+            'follower_user_id'   => $this->me->id,
+            'followed_user_id'   => $this->otherUser->id,
+            'youtube_channel_id' => $this->otherChannels[0]->id,
+            'pool_type'          => 'normal',
+            'created_at'         => now(),
+        ]);
+        PlatformFollow::create([
+            'follower_user_id'   => $this->me->id,
+            'followed_user_id'   => $this->otherUser->id,
+            'youtube_channel_id' => $this->otherChannels[1]->id,
+            'pool_type'          => 'normal',
+            'created_at'         => now(),
+        ]);
+        PlatformFollow::create([
+            'follower_user_id'   => $this->me->id,
+            'followed_user_id'   => $this->otherUser->id,
+            'youtube_channel_id' => $this->otherChannels[2]->id,
+            'pool_type'          => 'normal',
+            'created_at'         => now(),
+        ]);
+
+        // Günlük 3 hak dolduğu için 429 hatası vermeli
+        $response = $this->actingAs($this->me)
+            ->post(route('discovery.follow', 'normal'), [
+                'channel_ids' => [
+                    $this->otherChannels[0]->id,
+                    $this->otherChannels[1]->id,
+                    $this->otherChannels[2]->id,
+                ],
+            ]);
+
+        $response->assertStatus(429);
+    }
 }
 

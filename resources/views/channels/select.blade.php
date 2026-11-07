@@ -36,32 +36,69 @@
 
 <!-- Dinamik Google Kanal Listesi Konteyneri -->
 <div id="dynamic-channels-container" style="{{ $channels->isEmpty() ? 'display:none;' : '' }}margin-top:24px;">
-    <div class="card" style="border:2px solid var(--wine);">
-        <div class="eyebrow" style="color:var(--wine);">Google Hesabınızdaki Kanallar</div>
-        <h2 style="font:25px 'DM Serif Display';margin:8px 0 16px;">Bağlamak İstediğiniz Kanalı Seçin</h2>
+    <div class="card" style="border:2px solid var(--wine);padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
+            <div>
+                <div class="eyebrow" style="color:var(--wine);">Bağlı YouTube Kanallarınız ({{ $channels->count() }})</div>
+                <h2 style="font:24px 'DM Serif Display';margin:4px 0 0;">Yönetmek İstediğiniz Kanalı Seçin</h2>
+            </div>
+            <span class="muted" style="font-size:12px;">Her kanalın havuzda yer alması için 3 video seçilmelidir</span>
+        </div>
         
-        <form method="post" action="{{ route('channels.store') }}" id="google-channel-select-form">
-            @csrf
-            <div id="channel-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:20px;">
-                @foreach($channels as $ch)
-                    <label style="border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--cream);transition:border-color 0.15s,box-shadow 0.15s;">
-                        <input type="radio" name="channel_id" value="{{ $ch->youtube_channel_id }}" @checked($loop->first) style="accent-color:var(--wine);width:18px;height:18px;">
+        <div id="channel-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:10px;">
+            @foreach($channels as $ch)
+                @php
+                    $isActive = $active && $active->youtube_channel_id === $ch->id;
+                    $showcaseCount = $ch->showcase_count ?? 0;
+                    $isReady = ($showcaseCount === 3);
+                @endphp
+                <div style="border:2px solid {{ $isActive ? 'var(--rust)' : 'var(--line)' }};border-radius:12px;padding:16px;background:{{ $isActive ? '#fdf8f5' : 'var(--cream)' }};display:flex;flex-direction:column;justify-content:space-between;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                    <div style="display:flex;align-items:center;gap:12px;">
                         @if($ch->thumbnail_url)
-                            <img src="{{ $ch->thumbnail_url }}" alt="{{ $ch->title }}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid var(--line);">
+                            <img src="{{ $ch->thumbnail_url }}" alt="{{ $ch->title }}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">
                         @else
-                            <div style="width:48px;height:48px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--wine);">{{ strtoupper(mb_substr($ch->title, 0, 1)) }}</div>
+                            <div style="width:48px;height:48px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--wine);flex-shrink:0;">{{ strtoupper(mb_substr($ch->title, 0, 1)) }}</div>
                         @endif
-                        <div style="overflow:hidden;">
-                            <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $ch->title }}</div>
+                        <div style="overflow:hidden;flex:1;">
+                            <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ $ch->title }}">{{ $ch->title }}</div>
                             @if($ch->custom_url)
-                                <div style="font-size:12px;color:var(--muted);">{{ $ch->custom_url }}</div>
+                                <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $ch->custom_url }}</div>
                             @endif
                         </div>
-                    </label>
-                @endforeach
-            </div>
-            <button class="btn" type="submit" style="padding:13px 24px;">Seçilen Kanalı Platforma Bağla</button>
-        </form>
+                    </div>
+
+                    <!-- Durum Etiketleri -->
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:11px;">
+                        @if($isActive)
+                            <span style="padding:3px 8px;border-radius:6px;background:#e6f4ea;color:#137333;font-weight:700;">● Aktif Yönetilen</span>
+                        @endif
+
+                        @if($isReady)
+                            <span style="padding:3px 8px;border-radius:6px;background:#fef7e0;color:#b06000;font-weight:600;">✓ 3/3 Video Vitrinde</span>
+                        @else
+                            <span style="padding:3px 8px;border-radius:6px;background:#fff0ed;color:#c5221f;font-weight:600;">⚠️ {{ $showcaseCount }}/3 Video (Vitrin Bekleniyor)</span>
+                        @endif
+                    </div>
+
+                    <!-- Aksiyon Butonları -->
+                    <div style="display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid var(--line);">
+                        @if($isActive)
+                            <a href="{{ route('videos.showcase') }}" class="btn" style="flex:1;padding:8px 12px;font-size:12px;text-align:center;">
+                                ✨ Vitrini Yönet
+                            </a>
+                        @else
+                            <form method="post" action="{{ route('channels.store') }}" style="flex:1;margin:0;">
+                                @csrf
+                                <input type="hidden" name="channel_id" value="{{ $ch->youtube_channel_id }}">
+                                <button class="btn secondary" type="submit" style="width:100%;padding:8px 12px;font-size:12px;cursor:pointer;">
+                                    Bu Kanalı Yönet →
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
+        </div>
     </div>
 </div>
 

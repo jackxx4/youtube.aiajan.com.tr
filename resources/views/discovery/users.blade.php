@@ -89,7 +89,7 @@
                     Seçilen 3 Kanalı Takip Et
                 </button>
                 <span class="muted" style="font-size:12px;">
-                    Günlük keşif hakkınız: 3 normal + 3 destekçi = toplam 6 kanal.
+                    Günlük 3 abone olma / takip hakkınız bulunmaktadır.
                 </span>
             </div>
         </form>

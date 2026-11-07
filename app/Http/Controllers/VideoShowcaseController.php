@@ -35,8 +35,13 @@ class VideoShowcaseController extends Controller
             ->limit(10)
             ->get();
 
-        // Vitrinde seçili video ID'leri (en fazla 3 adet)
+        // YALNIZCA bu kanala ait vitrinde seçili video ID'leri (en fazla 3 adet)
+        $channelVideoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
         $selectedIds = UserVideoSelection::where('user_id', $user->id)
+            ->where(function ($q) use ($channel, $channelVideoIds) {
+                $q->where('youtube_channel_id', $channel->id)
+                  ->orWhereIn('video_id', $channelVideoIds);
+            })
             ->pluck('video_id')
             ->all();
 
@@ -45,7 +50,25 @@ class VideoShowcaseController extends Controller
             ->where('availability', 'available')
             ->get();
 
-        return view('videos.showcase', compact('channelVideos', 'selectedIds', 'showcaseVideos', 'channel'));
+        // Kullanıcının kayıtlı tüm kanalları (hızlı kanal değiştirici için)
+        $allChannelIds = array_values(array_unique(array_filter(array_merge(
+            (array) ($user->google_channel_ids ?? []),
+            $user->channelLinks()->with('channel')->get()->pluck('channel.youtube_channel_id')->filter()->all()
+        ))));
+        $userChannels = !empty($allChannelIds)
+            ? YouTubeChannel::whereIn('youtube_channel_id', $allChannelIds)->orderBy('title')->get()
+            : collect([$channel]);
+
+        foreach ($userChannels as $uc) {
+            $ucVideoIds = Video::where('youtube_channel_id', $uc->id)->pluck('id');
+            $uc->showcase_count = UserVideoSelection::where('user_id', $user->id)
+                ->where(function ($q) use ($uc, $ucVideoIds) {
+                    $q->where('youtube_channel_id', $uc->id)
+                      ->orWhereIn('video_id', $ucVideoIds);
+                })->count();
+        }
+
+        return view('videos.showcase', compact('channelVideos', 'selectedIds', 'showcaseVideos', 'channel', 'userChannels'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -63,23 +86,43 @@ class VideoShowcaseController extends Controller
         ]);
 
         $ids = array_map('intval', $data['video_ids'] ?? []);
+        $channelVideoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
 
-        // Eğer hiç video seçilmemişse vitrin boşaltılır
+        // Eğer hiç video seçilmemişse SADECE bu kanalın vitrini boşaltılır
         if (empty($ids)) {
-            UserVideoSelection::where('user_id', $user->id)->delete();
+            UserVideoSelection::where('user_id', $user->id)
+                ->where(function ($q) use ($channel, $channelVideoIds) {
+                    $q->where('youtube_channel_id', $channel->id)
+                      ->orWhereIn('video_id', $channelVideoIds);
+                })->delete();
+
             return redirect()->route('videos.showcase')
-                ->with('status', 'Vitrininiz boşaltıldı. Dilediğiniz zaman yeni videolar seçebilirsiniz.');
+                ->with('status', '“' . $channel->title . '” vitrininiz boşaltıldı.');
         }
 
-        DB::transaction(function () use ($user, $ids) {
-            UserVideoSelection::where('user_id', $user->id)->delete();
+        DB::transaction(function () use ($user, $channel, $channelVideoIds, $ids) {
+            // SADECE bu kanala ait vitrin seçimlerini güncelle
+            UserVideoSelection::where('user_id', $user->id)
+                ->where(function ($q) use ($channel, $channelVideoIds) {
+                    $q->where('youtube_channel_id', $channel->id)
+                      ->orWhereIn('video_id', $channelVideoIds);
+                })->delete();
+
             foreach ($ids as $videoId) {
-                UserVideoSelection::create(['user_id' => $user->id, 'video_id' => $videoId]);
+                UserVideoSelection::create([
+                    'user_id'            => $user->id,
+                    'video_id'           => $videoId,
+                    'youtube_channel_id' => $channel->id,
+                ]);
             }
         });
 
-        return redirect()->route('videos.showcase')
-            ->with('status', count($ids) . ' video vitrininize kaydedildi! (3/' . count($ids) . ')');
+        $count = count($ids);
+        $message = $count === 3
+            ? '3 video “' . $channel->title . '” vitrininize kaydedildi! Kanalınız ve videolarınız artık keşif havuzunda yayında.'
+            : $count . ' video kaydedildi. Kanalınızın keşif havuzuna girmesi için 3 video seçilmelidir (' . $count . '/3).';
+
+        return redirect()->route('videos.showcase')->with('status', $message);
     }
 
     /**

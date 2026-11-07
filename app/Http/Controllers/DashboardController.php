@@ -50,6 +50,8 @@ class DashboardController extends Controller
         // Geçmiş kanal bağlantıları
         $pastLinks = $allLinks->whereNotNull('ended_at')->values();
 
+        $userChannels = $ownedChannels;
+
         return view('dashboard', compact(
             'user',
             'channel',
@@ -60,6 +62,7 @@ class DashboardController extends Controller
             'followsToday',
             'selectedVideoIds',
             'showcaseVideos',
+            'userChannels',
             'otherChannels',
             'pastLinks'
         ));

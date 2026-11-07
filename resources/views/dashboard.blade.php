@@ -95,6 +95,37 @@
                     @endif
                 </div>
 
+                <!-- Birden Fazla Kanal Varsa Hızlı Kanal Değiştirici -->
+                @if(isset($userChannels) && $userChannels->count() > 1)
+                    <div style="margin-top:16px;padding:12px 16px;background:rgba(255,255,255,0.7);border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--wine);display:flex;align-items:center;gap:6px;">
+                            <span>📺 Bağlı Kanallarınız ({{ $userChannels->count() }}):</span>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            @foreach($userChannels as $uc)
+                                @if($channel && $uc->id === $channel->id)
+                                    <span style="padding:5px 12px;border-radius:20px;background:var(--rust);color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;">
+                                        <span>●</span>
+                                        <span>{{ $uc->title }}</span>
+                                        <span style="font-size:10px;opacity:0.85;">(Aktif)</span>
+                                    </span>
+                                @else
+                                    <form method="POST" action="{{ route('channels.store') }}" style="margin:0;display:inline;">
+                                        @csrf
+                                        <input type="hidden" name="channel_id" value="{{ $uc->youtube_channel_id }}">
+                                        <button type="submit" class="btn secondary" style="padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;">
+                                            {{ $uc->title }} →
+                                        </button>
+                                    </form>
+                                @endif
+                            @endforeach
+                            <a href="{{ route('channels.select') }}" style="font-size:12px;color:var(--rust);text-decoration:underline;margin-left:4px;">
+                                ＋ Yeni Kanal
+                            </a>
+                        </div>
+                    </div>
+                @endif
+
                 @if(!$channel)
                     <div style="margin-top:16px;padding:12px 16px;border-radius:8px;background:#fffdfa;border:1px dashed var(--rust);font-size:13px;color:var(--muted);">
                         💡 Topluluk havuzunda yer almak ve video vitrininizi oluşturmak için lütfen yukarıdaki <strong>“➕ YouTube Kanalı Bağla”</strong> butonuyla kanalınızı bağlayın.
@@ -141,9 +172,9 @@
             <div>
                 <div class="eyebrow">Bugünkü Keşif Kotası</div>
                 <div style="font:28px 'DM Serif Display';margin:6px 0 2px;color:var(--wine);">
-                    {{ $followsToday }} / 6
+                    {{ $followsToday }} / 3
                 </div>
-                <div class="muted" style="font-size:12px;">Günlük platform takip hakkı</div>
+                <div class="muted" style="font-size:12px;">Günlük 3 abone olma / takip hakkı</div>
             </div>
             <a href="{{ route('discovery.users', 'normal') }}" class="btn secondary" style="padding:9px 14px;font-size:12px;">
                 Keşfe Başla →

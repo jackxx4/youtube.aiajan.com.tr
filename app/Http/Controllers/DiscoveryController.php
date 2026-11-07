@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PlatformFollow;
 use App\Models\User;
 use App\Models\UserChannelLink;
+use App\Models\UserVideoSelection;
 use App\Models\Video;
 use App\Models\YouTubeChannel;
 use Illuminate\Http\RedirectResponse;
@@ -139,16 +140,12 @@ class DiscoveryController extends Controller
             return back()->withErrors(['error' => 'Lütfen birbirinden farklı 3 kanal seçin.']);
         }
 
-        // Günlük sınır kontrolü (havuzda maks 3, toplam günde maks 6)
-        $poolCount = PlatformFollow::where('follower_user_id', $me->id)
-            ->where('pool_type', $pool)
-            ->whereDate('created_at', today())
-            ->count();
-        $total = PlatformFollow::where('follower_user_id', $me->id)
+        // Günlük sınır kontrolü: Kullanıcının günlük 3 tane takip etme / abone olma hakkı vardır
+        $todayFollows = PlatformFollow::where('follower_user_id', $me->id)
             ->whereDate('created_at', today())
             ->count();
 
-        abort_if($poolCount + 3 > 3 || $total + 3 > 6, 429, 'Bu keşif havuzundaki günlük takip sınırına ulaştınız.');
+        abort_if($todayFollows >= 3, 429, 'Günlük 3 kanal takip etme hakkınızı doldurdunuz. Yarın tekrar keşfe çıkabilirsiniz.');
 
         // İster kanal ID'si ister kullanıcı ID'si gelmiş olsun çözümle
         $channels = YouTubeChannel::with('links.user')->whereIn('id', $ids)->get();
@@ -201,20 +198,39 @@ class DiscoveryController extends Controller
 
     /**
      * Video Keşfi:
-     * Sistem 10 video gösterir -> Kullanıcı 3 video seçer -> Seçilen 3 video sırayla oynatılır.
+     * 1. SADECE kullanıcıların vitrinine seçip onayladığı videolar havuza düşer (Admin panelindeki Vitrindeki Videolar ile birebirdir).
+     * 2. Kullanıcı, hesap veya kanal HİÇBİR ZAMAN kendi videolarını keşfette göremez!
+     * 3. 10 video gösterilir -> Kullanıcı 3 video seçer -> Seçilen 3 video sırayla oynatılır.
      */
     public function videos(Request $request): View
     {
+        $me = $request->user();
         $selectedIds = session('selected_video_ids');
 
-        // Eğer kullanıcı 3 video seçmişse Sıralı Oynatıcı modunu aç
+        // Kural: Kullanıcı, hesap veya kanal HİÇBİR ZAMAN kendi videolarını keşfette göremez!
+        $myLinkedChannelIds = UserChannelLink::where('user_id', $me->id)->pluck('youtube_channel_id')->all();
+        $myGoogleChannelIds = YouTubeChannel::whereIn('youtube_channel_id', (array) ($me->google_channel_ids ?? []))->pluck('id')->all();
+        $myChannelIds = array_values(array_unique(array_filter(array_merge($myLinkedChannelIds, $myGoogleChannelIds))));
+
+        $myVideoIds = Video::whereIn('youtube_channel_id', $myChannelIds)->pluck('id')->all();
+        $mySelectedVideoIds = UserVideoSelection::where('user_id', $me->id)->pluck('video_id')->all();
+        $allMyVideoIds = array_values(array_unique(array_merge($myVideoIds, $mySelectedVideoIds)));
+
+        // Engellenen kullanıcılar
+        $blockedByMe = DB::table('user_blocks')->where('blocker_user_id', $me->id)->pluck('blocked_user_id')->all();
+        $blockedMe = DB::table('user_blocks')->where('blocked_user_id', $me->id)->pluck('blocker_user_id')->all();
+        $blockedUserIds = array_values(array_unique(array_merge($blockedByMe, $blockedMe)));
+
+        // 1. Sıralı Oynatıcı Modu: Kullanıcı 3 video seçmişse
         if (is_array($selectedIds) && count($selectedIds) === 3) {
             $selectedVideos = Video::with('channel')
                 ->whereIn('id', $selectedIds)
                 ->where('availability', 'available')
+                ->whereNotIn('youtube_channel_id', $myChannelIds)
+                ->whereNotIn('id', $allMyVideoIds)
                 ->get();
 
-            if ($selectedVideos->isNotEmpty()) {
+            if ($selectedVideos->count() === 3) {
                 $playlist = $selectedVideos->map(fn($v) => [
                     'id'      => (string) $v->youtube_video_id,
                     'title'   => (string) $v->title,
@@ -230,16 +246,25 @@ class DiscoveryController extends Controller
             }
         }
 
-        // Henüz seçim yapılmadıysa: Sistem rastgele 10 video sunar
-        try {
-            $videos = Video::with('channel')
-                ->where('availability', 'available')
-                ->inRandomOrder()
-                ->limit(10)
-                ->get();
-        } catch (\Throwable $e) {
-            $videos = collect();
+        // 2. Seçim Modu: SADECE diğer üreticilerin vitrinine seçtiği videolar havuzdadır!
+        // Admin panelindeki "Vitrindeki Videolar" ile birebir eşleşir.
+        $poolVideoIds = UserVideoSelection::whereNotIn('youtube_channel_id', $myChannelIds)
+            ->where('user_id', '<>', $me->id)
+            ->pluck('video_id')
+            ->unique()
+            ->all();
+
+        $query = Video::with('channel')
+            ->where('availability', 'available')
+            ->whereIn('id', $poolVideoIds)
+            ->whereNotIn('youtube_channel_id', $myChannelIds)
+            ->whereNotIn('id', $allMyVideoIds);
+
+        if (!empty($blockedUserIds)) {
+            $query->whereDoesntHave('channel.links', fn($q) => $q->whereIn('user_id', $blockedUserIds));
         }
+
+        $videos = $query->inRandomOrder()->limit(10)->get();
 
         return view('discovery.videos', [
             'mode'     => 'selection',
@@ -257,6 +282,20 @@ class DiscoveryController extends Controller
             'video_ids.required' => 'Lütfen 3 video seçin.',
             'video_ids.size'     => 'Sistemde sırayla izlemek için tam olarak 3 video seçmelisiniz.',
         ]);
+
+        $me = $request->user();
+        $myLinkedChannelIds = UserChannelLink::where('user_id', $me->id)->pluck('youtube_channel_id')->all();
+        $myGoogleChannelIds = YouTubeChannel::whereIn('youtube_channel_id', (array) ($me->google_channel_ids ?? []))->pluck('id')->all();
+        $myChannelIds = array_values(array_unique(array_filter(array_merge($myLinkedChannelIds, $myGoogleChannelIds))));
+
+        // Kural denetimi: Kendi videosunu seçemez
+        $forbiddenCount = Video::whereIn('id', $data['video_ids'])
+            ->where(function ($q) use ($myChannelIds, $me) {
+                $q->whereIn('youtube_channel_id', $myChannelIds)
+                  ->orWhereHas('userSelections', fn($sq) => $sq->where('user_id', $me->id));
+            })->count();
+
+        abort_if($forbiddenCount > 0, 403, 'Kendi kanalınıza veya hesabınıza ait videoları keşif listesine ekleyemezsiniz.');
 
         session(['selected_video_ids' => $data['video_ids']]);
 
