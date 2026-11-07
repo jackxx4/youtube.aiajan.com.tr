@@ -11,6 +11,7 @@ class PlatformFollow extends Model
 
     protected $fillable = [
         'follower_user_id',
+        'follower_channel_id',
         'followed_user_id',
         'youtube_channel_id',
         'pool_type',
@@ -37,5 +38,10 @@ class PlatformFollow extends Model
     public function channel(): BelongsTo
     {
         return $this->belongsTo(YouTubeChannel::class, 'youtube_channel_id');
+    }
+
+    public function followerChannel(): BelongsTo
+    {
+        return $this->belongsTo(YouTubeChannel::class, 'follower_channel_id');
     }
 }

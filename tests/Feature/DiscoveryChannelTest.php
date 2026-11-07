@@ -157,5 +157,60 @@ class DiscoveryChannelTest extends TestCase
 
         $response->assertStatus(429);
     }
+
+    public function test_user_with_multiple_channels_has_independent_daily_follow_tasks_per_channel(): void
+    {
+        $secondChannel = YouTubeChannel::create([
+            'youtube_channel_id' => 'UC_MY_CHANNEL_2',
+            'title'              => 'İkinci Kanalım',
+            'last_synced_at'     => now(),
+        ]);
+
+        UserChannelLink::create([
+            'user_id'            => $this->me->id,
+            'youtube_channel_id' => $secondChannel->id,
+            'started_at'         => now(),
+            'ended_at'           => now(),
+        ]);
+
+        // 1. kanal için günlük 3 takip görevi tamamlandı
+        $this->actingAs($this->me)
+            ->post(route('discovery.follow', 'normal'), [
+                'source_channel_id' => $this->myChannel->id,
+                'channel_ids'       => [
+                    $this->otherChannels[0]->id,
+                    $this->otherChannels[1]->id,
+                    $this->otherChannels[2]->id,
+                ],
+            ])
+            ->assertRedirect();
+
+        // 1. kanal tekrar takip yapmak isterse 429 almalı
+        $this->actingAs($this->me)
+            ->post(route('discovery.follow', 'normal'), [
+                'source_channel_id' => $this->myChannel->id,
+                'channel_ids'       => [
+                    $this->otherChannels[0]->id,
+                    $this->otherChannels[1]->id,
+                    $this->otherChannels[2]->id,
+                ],
+            ])
+            ->assertStatus(429);
+
+        // Ancak 2. kanal için günlük 3 takip görevi bağımsız olarak yapılabilmeli!
+        $this->actingAs($this->me)
+            ->post(route('discovery.follow', 'normal'), [
+                'source_channel_id' => $secondChannel->id,
+                'channel_ids'       => [
+                    $this->otherChannels[0]->id,
+                    $this->otherChannels[1]->id,
+                    $this->otherChannels[2]->id,
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertEquals(3, PlatformFollow::where('follower_channel_id', $this->myChannel->id)->count());
+        $this->assertEquals(3, PlatformFollow::where('follower_channel_id', $secondChannel->id)->count());
+    }
 }
 

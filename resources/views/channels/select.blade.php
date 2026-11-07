@@ -78,23 +78,30 @@
                         @else
                             <span style="padding:3px 8px;border-radius:6px;background:#fff0ed;color:#c5221f;font-weight:600;">⚠️ {{ $showcaseCount }}/3 Video (Vitrin Bekleniyor)</span>
                         @endif
+
+                        <span style="padding:3px 8px;border-radius:6px;background:{{ ($ch->follows_today ?? 0) >= 3 ? '#e6f4ea' : '#f4eee6' }};color:{{ ($ch->follows_today ?? 0) >= 3 ? '#137333' : 'var(--wine)' }};font-weight:600;">
+                            🤝 Takip Görevi: {{ $ch->follows_today ?? 0 }}/3
+                        </span>
                     </div>
 
                     <!-- Aksiyon Butonları -->
-                    <div style="display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid var(--line);">
+                    <div style="display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid var(--line);flex-wrap:wrap;">
                         @if($isActive)
-                            <a href="{{ route('videos.showcase') }}" class="btn" style="flex:1;padding:8px 12px;font-size:12px;text-align:center;">
+                            <a href="{{ route('videos.showcase') }}" class="btn" style="flex:1;padding:8px 10px;font-size:12px;text-align:center;">
                                 ✨ Vitrini Yönet
                             </a>
                         @else
                             <form method="post" action="{{ route('channels.store') }}" style="flex:1;margin:0;">
                                 @csrf
                                 <input type="hidden" name="channel_id" value="{{ $ch->youtube_channel_id }}">
-                                <button class="btn secondary" type="submit" style="width:100%;padding:8px 12px;font-size:12px;cursor:pointer;">
-                                    Bu Kanalı Yönet →
+                                <button class="btn secondary" type="submit" style="width:100%;padding:8px 10px;font-size:12px;cursor:pointer;">
+                                    🎬 Vitrini Yönet →
                                 </button>
                             </form>
                         @endif
+                        <a href="{{ route('discovery.users', ['pool' => 'normal', 'source_channel_id' => $ch->id]) }}" class="btn secondary" style="padding:8px 10px;font-size:12px;text-align:center;">
+                            🎯 Takip Görevi →
+                        </a>
                     </div>
                 </div>
             @endforeach

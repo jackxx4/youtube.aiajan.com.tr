@@ -136,17 +136,28 @@ class VideoShowcaseController extends Controller
         abort_unless($channel, 422, 'Aktif kanal bulunamadı.');
         abort_unless($video->youtube_channel_id === $channel->id, 403, 'Bu video kanalınıza ait değil.');
 
-        $currentCount = UserVideoSelection::where('user_id', $user->id)->count();
+        $channelVideoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
+        $currentCount = UserVideoSelection::where('user_id', $user->id)
+            ->where(function ($q) use ($channel, $channelVideoIds) {
+                $q->where('youtube_channel_id', $channel->id)
+                  ->orWhereIn('video_id', $channelVideoIds);
+            })->count();
+
         if ($currentCount >= 3) {
-            return back()->withErrors(['error' => 'Vitrininizde en fazla 3 video yer alabilir.']);
+            return back()->withErrors(['error' => 'Bu kanalın vitrininde en fazla 3 video yer alabilir.']);
         }
 
-        UserVideoSelection::firstOrCreate([
-            'user_id' => $user->id,
-            'video_id' => $video->id,
-        ]);
+        UserVideoSelection::firstOrCreate(
+            [
+                'user_id'  => $user->id,
+                'video_id' => $video->id,
+            ],
+            [
+                'youtube_channel_id' => $channel->id,
+            ]
+        );
 
-        return back()->with('status', '“' . $video->title . '” videosu vitrininize eklendi! (3/' . ($currentCount + 1) . ')');
+        return back()->with('status', '“' . $video->title . '” videosu “' . $channel->title . '” vitrininize eklendi! (' . ($currentCount + 1) . '/3)');
     }
 
     /**
@@ -171,11 +182,24 @@ class VideoShowcaseController extends Controller
     }
 
     /**
-     * Vitrindeki tüm videoları sıfırlar / kaldırır.
+     * Vitrindeki tüm videoları sıfırlar / kaldırır (yalnızca aktif kanal için).
      */
     public function clearAll(Request $request): RedirectResponse
     {
         $user = $request->user();
+        $channel = $user->activeChannelLink?->channel;
+
+        if ($channel) {
+            $channelVideoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
+            UserVideoSelection::where('user_id', $user->id)
+                ->where(function ($q) use ($channel, $channelVideoIds) {
+                    $q->where('youtube_channel_id', $channel->id)
+                      ->orWhereIn('video_id', $channelVideoIds);
+                })->delete();
+
+            return back()->with('status', '“' . $channel->title . '” vitrininizdeki tüm videolar kaldırıldı.');
+        }
+
         UserVideoSelection::where('user_id', $user->id)->delete();
 
         return back()->with('status', 'Vitrininizdeki tüm videolar kaldırıldı.');
@@ -221,9 +245,15 @@ class VideoShowcaseController extends Controller
             return back()->withErrors(['video_url' => 'Bağlı bir kanalınız bulunamadı.']);
         }
 
-        $currentCount = UserVideoSelection::where('user_id', $user->id)->count();
+        $channelVideoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
+        $currentCount = UserVideoSelection::where('user_id', $user->id)
+            ->where(function ($q) use ($channel, $channelVideoIds) {
+                $q->where('youtube_channel_id', $channel->id)
+                  ->orWhereIn('video_id', $channelVideoIds);
+            })->count();
+
         if ($currentCount >= 3) {
-            return back()->withErrors(['video_url' => 'Vitrininiz dolu (3/3). Yeni video eklemek için önce bir video çıkarın.'])->withInput();
+            return back()->withErrors(['video_url' => '“' . $channel->title . '” kanalınızın vitrini dolu (3/3). Yeni video eklemek için önce bir video çıkarın.'])->withInput();
         }
 
         // Shorts URL'ini reddet
@@ -320,13 +350,18 @@ class VideoShowcaseController extends Controller
             ]
         );
 
-        UserVideoSelection::firstOrCreate([
-            'user_id'  => $user->id,
-            'video_id' => $video->id,
-        ]);
+        UserVideoSelection::firstOrCreate(
+            [
+                'user_id'  => $user->id,
+                'video_id' => $video->id,
+            ],
+            [
+                'youtube_channel_id' => $channel->id,
+            ]
+        );
 
         return redirect()->route('videos.showcase')
-            ->with('status', '“' . $title . '” videosu vitrininize eklendi! (' . ($currentCount + 1) . '/3)');
+            ->with('status', '“' . $title . '” videosu “' . $channel->title . '” vitrininize eklendi! (' . ($currentCount + 1) . '/3)');
     }
 
     /**

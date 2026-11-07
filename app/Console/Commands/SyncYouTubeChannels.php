@@ -57,6 +57,9 @@ class SyncYouTubeChannels extends Command
 
                 $client = new GoogleClient();
                 $client->setApplicationName(config('app.name'));
+                $client->setClientId((string) config('services.google.client_id'));
+                $client->setClientSecret((string) config('services.google.client_secret'));
+                $client->setRedirectUri((string) config('services.google.redirect'));
 
                 $expires = $token->expires_at
                     ? max(0, (int) now()->diffInSeconds($token->expires_at, false))

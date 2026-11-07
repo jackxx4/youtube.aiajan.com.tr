@@ -15,6 +15,31 @@
         </a>
     </div>
 
+    @if(isset($userChannels) && $userChannels->count() > 1)
+        <div class="card" style="margin:14px 0 18px;padding:12px 18px;background:#fdfcf9;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border:1px solid var(--line);">
+            <div style="font-size:13px;font-weight:600;color:var(--wine);display:flex;align-items:center;gap:6px;">
+                <span>🎯 Takip Görevini Yürüttüğünüz Kanal:</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                @foreach($userChannels as $uc)
+                    @php
+                        $isCurrentSource = isset($activeChannel) && $activeChannel && $activeChannel->id === $uc->id;
+                        $ucFollows = $uc->follows_today ?? 0;
+                    @endphp
+                    @if($isCurrentSource)
+                        <span style="padding:5px 12px;border-radius:20px;background:var(--rust);color:#fff;font-size:12px;font-weight:700;">
+                            ● {{ $uc->title }} (Bugün: {{ $ucFollows }}/3)
+                        </span>
+                    @else
+                        <a href="{{ route('discovery.users', ['pool' => $pool, 'source_channel_id' => $uc->id]) }}" class="btn secondary" style="padding:5px 12px;border-radius:20px;font-size:12px;text-decoration:none;">
+                            {{ $uc->title }} ({{ $ucFollows }}/3) →
+                        </a>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     @php
         $displayItems = isset($channels) && $channels->isNotEmpty() ? $channels : (isset($users) ? $users : collect());
     @endphp
@@ -33,6 +58,9 @@
     @else
         <form method="POST" action="{{ route('discovery.follow', $pool) }}" class="card" style="margin-top:24px;padding:24px;">
             @csrf
+            @if(isset($activeChannel) && $activeChannel)
+                <input type="hidden" name="source_channel_id" value="{{ $activeChannel->id }}">
+            @endif
 
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:14px;">
                 <span class="muted" style="font-size:13px;">

@@ -29,11 +29,48 @@ class DiscoveryController extends Controller
         $myGoogleChannelIds = YouTubeChannel::whereIn('youtube_channel_id', (array) ($me->google_channel_ids ?? []))->pluck('id')->all();
         $myChannelIds = array_values(array_unique(array_filter(array_merge($myLinkedChannelIds, $myGoogleChannelIds))));
 
-        // 2. Halihazırda takip edilen kanal ID'leri
-        $followedChannelIds = PlatformFollow::where('follower_user_id', $me->id)
-            ->whereNotNull('youtube_channel_id')
-            ->pluck('youtube_channel_id')
-            ->all();
+        $userChannels = !empty($myChannelIds)
+            ? YouTubeChannel::whereIn('id', $myChannelIds)->orderBy('title')->get()
+            : collect();
+
+        $activeChannel = $me->activeChannelLink()->with('channel')->first()?->channel;
+        if ($request->filled('source_channel_id')) {
+            $requestedCh = $userChannels->firstWhere('id', (int) $request->input('source_channel_id'));
+            if ($requestedCh) {
+                $activeChannel = $requestedCh;
+            }
+        } elseif (!$activeChannel && $userChannels->isNotEmpty()) {
+            $activeChannel = $userChannels->first();
+        }
+
+        $sourceChannelId = $activeChannel?->id;
+
+        foreach ($userChannels as $uc) {
+            $uc->follows_today = PlatformFollow::where('follower_user_id', $me->id)
+                ->where('follower_channel_id', $uc->id)
+                ->whereDate('created_at', today())
+                ->count();
+        }
+
+        $followsToday = $sourceChannelId
+            ? PlatformFollow::where('follower_user_id', $me->id)
+                ->where('follower_channel_id', $sourceChannelId)
+                ->whereDate('created_at', today())
+                ->count()
+            : PlatformFollow::where('follower_user_id', $me->id)
+                ->whereDate('created_at', today())
+                ->count();
+
+        // 2. Bu kaynak kanal tarafından halihazırda takip edilen kanal ID'leri
+        $followedQuery = PlatformFollow::where('follower_user_id', $me->id)
+            ->whereNotNull('youtube_channel_id');
+        if ($sourceChannelId) {
+            $followedQuery->where(function ($q) use ($sourceChannelId) {
+                $q->where('follower_channel_id', $sourceChannelId)
+                  ->orWhereNull('follower_channel_id');
+            });
+        }
+        $followedChannelIds = $followedQuery->pluck('youtube_channel_id')->all();
 
         // 3. Engellenen kullanıcılar
         $blockedByMe = DB::table('user_blocks')->where('blocker_user_id', $me->id)->pluck('blocked_user_id')->all();
@@ -86,14 +123,15 @@ class DiscoveryController extends Controller
         $channels->load(['links.user']);
 
         // Görüntülenen kanalların sahiplerini impression tablosuna kaydet
-        $impressionRows = $channels->map(function ($ch) use ($me, $pool) {
+        $impressionRows = $channels->map(function ($ch) use ($me, $pool, $sourceChannelId) {
             $ownerId = $ch->links->first()?->user_id;
             if (!$ownerId) return null;
             return [
-                'viewer_user_id' => $me->id,
-                'shown_user_id'  => $ownerId,
-                'pool_type'      => $pool,
-                'shown_at'       => now(),
+                'viewer_user_id'    => $me->id,
+                'viewer_channel_id' => $sourceChannelId,
+                'shown_user_id'     => $ownerId,
+                'pool_type'         => $pool,
+                'shown_at'          => now(),
             ];
         })->filter()->values()->all();
 
@@ -118,16 +156,29 @@ class DiscoveryController extends Controller
             ];
         });
 
-        return view('discovery.users', compact('channels', 'users', 'pool'));
+        return view('discovery.users', compact('channels', 'users', 'pool', 'activeChannel', 'userChannels', 'followsToday'));
     }
 
     /**
-     * Seçilen 3 kanalı / üreticiyi takip etme işlemi
+     * Seçilen 3 kanalı / üreticiyi takip etme işlemi (Her kanal için ayrı günlük 3 görev kotası)
      */
     public function follow(Request $request, string $pool): RedirectResponse
     {
         abort_unless(in_array($pool, ['normal', 'supporter'], true), 404);
         $me = $request->user();
+
+        // Kaynak kanal belirleme (kullanıcının birden fazla kanalı varsa her kanalın ayrı günlük takip görevi vardır)
+        $myLinkedChannelIds = UserChannelLink::where('user_id', $me->id)->pluck('youtube_channel_id')->all();
+        $myGoogleChannelIds = YouTubeChannel::whereIn('youtube_channel_id', (array) ($me->google_channel_ids ?? []))->pluck('id')->all();
+        $myChannelIds = array_values(array_unique(array_filter(array_merge($myLinkedChannelIds, $myGoogleChannelIds))));
+
+        $sourceChannelId = $request->filled('source_channel_id')
+            ? (int) $request->input('source_channel_id')
+            : $me->activeChannelLink()->value('youtube_channel_id');
+
+        if ($sourceChannelId && !in_array($sourceChannelId, $myChannelIds, true)) {
+            abort(403, 'Bu kanal hesabınıza ait değil.');
+        }
 
         // Hem channel_ids hem user_ids dizilerini destekle
         $rawIds = $request->input('channel_ids') ?? $request->input('user_ids');
@@ -140,12 +191,22 @@ class DiscoveryController extends Controller
             return back()->withErrors(['error' => 'Lütfen birbirinden farklı 3 kanal seçin.']);
         }
 
-        // Günlük sınır kontrolü: Kullanıcının günlük 3 tane takip etme / abone olma hakkı vardır
-        $todayFollows = PlatformFollow::where('follower_user_id', $me->id)
-            ->whereDate('created_at', today())
-            ->count();
+        // Günlük sınır kontrolü: Her kanalın günlük 3 takip etme / abone olma görevi vardır
+        $todayQuery = PlatformFollow::where('follower_user_id', $me->id)
+            ->whereDate('created_at', today());
+        if ($sourceChannelId) {
+            $todayQuery->where(function ($q) use ($sourceChannelId) {
+                $q->where('follower_channel_id', $sourceChannelId)
+                  ->orWhereNull('follower_channel_id');
+            });
+        }
+        $todayFollows = $todayQuery->count();
 
-        abort_if($todayFollows >= 3, 429, 'Günlük 3 kanal takip etme hakkınızı doldurdunuz. Yarın tekrar keşfe çıkabilirsiniz.');
+        abort_if($todayFollows >= 3, 429, 'Bu kanal için günlük 3 kanal takip etme görevinizi tamamladınız. Diğer kanalınıza geçebilir veya yarın tekrar keşfe çıkabilirsiniz.');
+
+        $redirectParams = $request->filled('source_channel_id')
+            ? ['pool' => $pool, 'source_channel_id' => $sourceChannelId]
+            : $pool;
 
         // İster kanal ID'si ister kullanıcı ID'si gelmiş olsun çözümle
         $channels = YouTubeChannel::with('links.user')->whereIn('id', $ids)->get();
@@ -154,12 +215,13 @@ class DiscoveryController extends Controller
         if ($channels->count() < 3) {
             $fallbackUsers = User::with('activeChannelLink.channel')->whereIn('id', $ids)->get();
             if ($fallbackUsers->count() === 3) {
-                DB::transaction(function () use ($fallbackUsers, $me, $pool) {
+                DB::transaction(function () use ($fallbackUsers, $me, $pool, $sourceChannelId) {
                     foreach ($fallbackUsers as $u) {
                         PlatformFollow::firstOrCreate(
                             [
-                                'follower_user_id' => $me->id,
-                                'followed_user_id' => $u->id,
+                                'follower_user_id'    => $me->id,
+                                'follower_channel_id' => $sourceChannelId,
+                                'followed_user_id'    => $u->id,
                             ],
                             [
                                 'youtube_channel_id' => $u->activeChannelLink?->channel?->id,
@@ -169,20 +231,21 @@ class DiscoveryController extends Controller
                         );
                     }
                 });
-                return redirect()->route('discovery.users', $pool)->with('status', 'Platform takipleriniz kaydedildi.');
+                return redirect()->route('discovery.users', $redirectParams)->with('status', 'Platform takipleriniz kaydedildi.');
             }
             abort(422, 'Seçimleriniz keşif havuzu kurallarına uymuyor.');
         }
 
-        DB::transaction(function () use ($channels, $me, $pool) {
+        DB::transaction(function () use ($channels, $me, $pool, $sourceChannelId) {
             foreach ($channels as $ch) {
                 $owner = $ch->links->first()?->user;
                 $followedUserId = $owner?->id ?? $me->id;
 
                 PlatformFollow::firstOrCreate(
                     [
-                        'follower_user_id'   => $me->id,
-                        'youtube_channel_id' => $ch->id,
+                        'follower_user_id'    => $me->id,
+                        'follower_channel_id' => $sourceChannelId,
+                        'youtube_channel_id'  => $ch->id,
                     ],
                     [
                         'followed_user_id'   => $followedUserId,
@@ -193,7 +256,7 @@ class DiscoveryController extends Controller
             }
         });
 
-        return redirect()->route('discovery.users', $pool)->with('status', 'Seçtiğiniz 3 kanal başarıyla takip edildi!');
+        return redirect()->route('discovery.users', $redirectParams)->with('status', 'Seçtiğiniz 3 kanal başarıyla takip edildi!');
     }
 
     /**

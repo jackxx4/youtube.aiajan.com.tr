@@ -53,6 +53,8 @@ Route::middleware('auth')->group(function(){
  Route::get('/kanal-secimi',[ChannelController::class,'index'])->name('channels.select');
  Route::post('/kanal-secimi',[ChannelController::class,'store'])->name('channels.store');
  Route::post('/kanal-secimi/google-senkron',[ChannelController::class,'syncGoogleChannels'])->name('channels.sync_google');
+ Route::post('/kanal-secimi/google-kanallarini-yenile',[ChannelController::class,'refreshGoogleChannels'])->name('channels.refresh_google');
+ Route::post('/kanal-secimi/{channel}/video-ekle',[ChannelController::class,'addVideo'])->name('channels.videos.add');
  Route::get('/profil',[ProfileController::class,'show'])->name('profile.me');
  Route::get('/kullanici/{username}',[ProfileController::class,'show'])->name('profile.show');
  Route::get('/kesfet/kullanicilar/{pool}',[DiscoveryController::class,'users'])->name('discovery.users');

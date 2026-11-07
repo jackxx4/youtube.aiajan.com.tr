@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PlatformFollow;
 use App\Models\UserChannelLink;
 use App\Models\UserVideoSelection;
 use App\Models\Video;
@@ -111,10 +112,150 @@ class ChannelController extends Controller
                       ->orWhereIn('video_id', $chVideoIds);
                 })
                 ->count();
+            $ch->follows_today = PlatformFollow::where('follower_user_id', $user->id)
+                ->where('follower_channel_id', $ch->id)
+                ->whereDate('created_at', today())
+                ->count();
             $ch->is_active = $active && $active->youtube_channel_id === $ch->id;
         }
 
         return view('channels.select', compact('channels', 'active'));
+    }
+
+    /**
+     * Kayıtlı OAuth belirteci ile kullanıcının Google kanallarını yeniler.
+     */
+    public function refreshGoogleChannels(Request $request, YouTubeChannelService $channelsService): RedirectResponse
+    {
+        $user = $request->user();
+        $token = $user->oauthToken;
+
+        if (!$token || !$token->access_token_enc) {
+            return redirect()->route('channels.select')
+                ->withErrors(['channel' => 'Kayıtlı Google oturumu bulunamadı. Lütfen aşağıdaki mavi Google butonu ile kanalınızı doğrulayın.']);
+        }
+
+        try {
+            $decryptedToken = Crypt::decryptString($token->access_token_enc);
+            $fetched = $channelsService->listMine($decryptedToken);
+
+            if ($fetched->isEmpty()) {
+                return redirect()->route('channels.select')
+                    ->withErrors(['channel' => 'Kayıtlı oturumunuzun süresi dolmuş olabilir. Lütfen aşağıdaki “Google ile Doğrulanmış Kanalımı Getir” butonunu kullanın.']);
+            }
+
+            $newIds = [];
+            foreach ($fetched as $data) {
+                $item = (array) $data;
+                $ch = YouTubeChannel::updateOrCreate(
+                    ['youtube_channel_id' => $item['youtube_channel_id']],
+                    collect($item)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
+                );
+                $newIds[] = $item['youtube_channel_id'];
+                if (!UserChannelLink::where('user_id', $user->id)->where('youtube_channel_id', $ch->id)->exists()) {
+                    UserChannelLink::create([
+                        'user_id'            => $user->id,
+                        'youtube_channel_id' => $ch->id,
+                        'started_at'         => now(),
+                        'ended_at'           => now(),
+                    ]);
+                }
+                try {
+                    $channelsService->syncChannelVideos($ch);
+                } catch (\Throwable) {}
+            }
+
+            $merged = array_values(array_unique(array_filter(array_merge((array) ($user->google_channel_ids ?? []), $newIds))));
+            session(['available_youtube_channels' => $merged]);
+            $user->update(['google_channel_ids' => $merged]);
+
+            return redirect()->route('channels.select')
+                ->with('status', count($newIds) . ' YouTube kanalı ve videoları başarıyla güncellendi.');
+        } catch (\Throwable $e) {
+            report($e);
+            return redirect()->route('channels.select')
+                ->withErrors(['channel' => 'Google kanalları yenilenemedi. Lütfen aşağıdaki Google butonu ile tekrar doğrulayın.']);
+        }
+    }
+
+    /**
+     * Belirli bir kanala doğrudan YouTube video bağlantısı ile video ekler.
+     */
+    public function addVideo(Request $request, YouTubeChannel $channel): RedirectResponse
+    {
+        $user = $request->user();
+        $ownsChannel = UserChannelLink::where('user_id', $user->id)->where('youtube_channel_id', $channel->id)->exists()
+            || in_array($channel->youtube_channel_id, (array) ($user->google_channel_ids ?? []), true);
+        abort_unless($ownsChannel, 403, 'Bu kanal hesabınıza bağlı değil.');
+
+        $data = $request->validate([
+            'video_url' => ['required', 'string', 'max:255'],
+        ]);
+
+        $url = trim($data['video_url']);
+        if (str_contains($url, '/shorts/')) {
+            return back()->withErrors(['video_url' => 'YouTube Shorts videoları eklenemez. Yalnızca normal videolar kabul edilir.']);
+        }
+
+        $videoId = null;
+        if (preg_match('/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/', $url, $m)) {
+            $videoId = $m[1];
+        } elseif (preg_match('/^[\w-]{11}$/', $url)) {
+            $videoId = $url;
+        }
+
+        if (!$videoId) {
+            return back()->withErrors(['video_url' => 'Geçerli bir YouTube video bağlantısı girin.']);
+        }
+
+        $existing = Video::where('youtube_video_id', $videoId)->first();
+        if ($existing && (int) $existing->youtube_channel_id !== (int) $channel->id) {
+            return back()->withErrors(['video_url' => 'Bu video başka bir kanala ait.']);
+        }
+
+        $oembedUrl = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' . $videoId . '&format=json';
+        $chOe = curl_init($oembedUrl);
+        curl_setopt_array($chOe, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 6,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $raw = curl_exec($chOe);
+        $meta = $raw ? json_decode($raw, true) : null;
+
+        $video = Video::updateOrCreate(
+            ['youtube_video_id' => $videoId],
+            [
+                'youtube_channel_id' => $channel->id,
+                'title'              => $meta['title'] ?? ('Video ' . $videoId),
+                'thumbnail_url'      => $meta['thumbnail_url'] ?? ("https://i.ytimg.com/vi/{$videoId}/hqdefault.jpg"),
+                'published_at'       => now(),
+                'availability'       => 'available',
+                'last_checked_at'    => now(),
+            ]
+        );
+
+        $chVideoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
+        $currentCount = UserVideoSelection::where('user_id', $user->id)
+            ->where(function ($q) use ($channel, $chVideoIds) {
+                $q->where('youtube_channel_id', $channel->id)
+                  ->orWhereIn('video_id', $chVideoIds);
+            })->count();
+
+        if ($currentCount < 3) {
+            UserVideoSelection::firstOrCreate(
+                [
+                    'user_id'  => $user->id,
+                    'video_id' => $video->id,
+                ],
+                [
+                    'youtube_channel_id' => $channel->id,
+                ]
+            );
+        }
+
+        return redirect()->route('channels.select')
+            ->with('status', "“{$video->title}” videosu “{$channel->title}” kanalınıza eklendi.");
     }
 
     /**

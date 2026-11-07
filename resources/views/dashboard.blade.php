@@ -166,34 +166,105 @@
         </div>
     </div>
 
-    <!-- 3. GÜNLÜK KEŞİF VE VİTRİN DURUM KARTLARI -->
+    <!-- 3. GÜNLÜK KEŞİF VE VİTRİN DURUM KARTLARI (AKTİF KANAL) -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:28px;">
         <div class="card" style="padding:20px;display:flex;align-items:center;justify-content:space-between;">
             <div>
-                <div class="eyebrow">Bugünkü Keşif Kotası</div>
+                <div class="eyebrow">Bugünkü Keşif Kotası {{ $channel ? '(' . $channel->title . ')' : '' }}</div>
                 <div style="font:28px 'DM Serif Display';margin:6px 0 2px;color:var(--wine);">
                     {{ $followsToday }} / 3
                 </div>
-                <div class="muted" style="font-size:12px;">Günlük 3 abone olma / takip hakkı</div>
+                <div class="muted" style="font-size:12px;">Her kanal için günlük 3 takip etme görevi</div>
             </div>
-            <a href="{{ route('discovery.users', 'normal') }}" class="btn secondary" style="padding:9px 14px;font-size:12px;">
+            <a href="{{ route('discovery.users', array_filter(['pool' => 'normal', 'source_channel_id' => $channel?->id])) }}" class="btn secondary" style="padding:9px 14px;font-size:12px;">
                 Keşfe Başla →
             </a>
         </div>
 
         <div class="card" style="padding:20px;display:flex;align-items:center;justify-content:space-between;">
             <div>
-                <div class="eyebrow">Vitrin Durumu</div>
+                <div class="eyebrow">Vitrin Durumu {{ $channel ? '(' . $channel->title . ')' : '' }}</div>
                 <div style="font:28px 'DM Serif Display';margin:6px 0 2px;color:var(--rust);">
                     {{ $showcaseVideos->count() }} / 3 Video
                 </div>
-                <div class="muted" style="font-size:12px;">Keşifte öne çıkan içerik</div>
+                <div class="muted" style="font-size:12px;">Bu kanalın keşifte öne çıkan içerikleri</div>
             </div>
             <a href="{{ route('videos.showcase') }}" class="btn secondary" style="padding:9px 14px;font-size:12px;">
                 Vitrini Düzenle ↗
             </a>
         </div>
     </div>
+
+    <!-- 3.5. ÇOKLU KANAL GÖREV TABLOSU (HER KANAL İÇİN VİDEO EKLEME VE KULLANICI TAKİP GÖREVLERİ) -->
+    @if(isset($userChannels) && $userChannels->count() > 0)
+        <div class="card" style="padding:22px 24px;margin-bottom:28px;border:1px solid var(--line);">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <div>
+                    <div class="eyebrow" style="color:var(--wine);">Çoklu Kanal Yönetimi ({{ $userChannels->count() }} Kanal)</div>
+                    <h2 style="font:22px 'DM Serif Display',serif;margin:4px 0 0;color:var(--ink);">Kanallarınız ve Kanal Başına Görev Durumu</h2>
+                </div>
+                <a href="{{ route('channels.select') }}" class="btn secondary" style="padding:8px 14px;font-size:12px;">
+                    ＋ Yeni Kanal Ekle / Yönet
+                </a>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;">
+                @foreach($userChannels as $uc)
+                    @php
+                        $ucActive = $channel && $uc->id === $channel->id;
+                        $ucShowcase = $uc->showcase_count ?? 0;
+                        $ucFollows = $uc->follows_today ?? 0;
+                    @endphp
+                    <div style="border:2px solid {{ $ucActive ? 'var(--rust)' : 'var(--line)' }};border-radius:12px;padding:15px;background:{{ $ucActive ? '#fdf8f5' : '#fff' }};display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            @if($uc->thumbnail_url)
+                                <img src="{{ $uc->thumbnail_url }}" alt="{{ $uc->title }}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">
+                            @else
+                                <div style="width:42px;height:42px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--wine);flex-shrink:0;">
+                                    {{ strtoupper(mb_substr($uc->title, 0, 1)) }}
+                                </div>
+                            @endif
+                            <div style="min-width:0;flex:1;">
+                                <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $uc->title }}</div>
+                                <div class="muted" style="font-size:11px;">{{ $uc->custom_url ?: $uc->youtube_channel_id }}</div>
+                            </div>
+                            @if($ucActive)
+                                <span style="padding:3px 8px;border-radius:6px;background:#e6f4ea;color:#137333;font-size:10px;font-weight:700;">Aktif</span>
+                            @endif
+                        </div>
+
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11px;">
+                            <span style="padding:4px 9px;border-radius:6px;background:{{ $ucShowcase >= 3 ? '#e6f4ea' : '#fff0ed' }};color:{{ $ucShowcase >= 3 ? '#137333' : '#c5221f' }};font-weight:600;">
+                                🎬 Video Görevi: {{ $ucShowcase }}/3
+                            </span>
+                            <span style="padding:4px 9px;border-radius:6px;background:{{ $ucFollows >= 3 ? '#e6f4ea' : '#fef7e0' }};color:{{ $ucFollows >= 3 ? '#137333' : '#b06000' }};font-weight:600;">
+                                🤝 Takip Görevi: {{ $ucFollows }}/3
+                            </span>
+                        </div>
+
+                        <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--line);">
+                            @if($ucActive)
+                                <a href="{{ route('videos.showcase') }}" class="btn secondary" style="flex:1;padding:7px 10px;font-size:11px;text-align:center;">
+                                    ✨ 3 Video Seç
+                                </a>
+                            @else
+                                <form method="POST" action="{{ route('channels.store') }}" style="flex:1;margin:0;">
+                                    @csrf
+                                    <input type="hidden" name="channel_id" value="{{ $uc->youtube_channel_id }}">
+                                    <button type="submit" class="btn secondary" style="width:100%;padding:7px 10px;font-size:11px;cursor:pointer;">
+                                        🎬 Vitrini Yönet →
+                                    </button>
+                                </form>
+                            @endif
+                            <a href="{{ route('discovery.users', ['pool' => 'normal', 'source_channel_id' => $uc->id]) }}" class="btn" style="flex:1;padding:7px 10px;font-size:11px;text-align:center;">
+                                🎯 Takip Görevi →
+                            </a>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     <!-- 4. ŞEFFAFLIK VE ORGANİK TOPLULUK İLKESİ -->
     <div class="card" style="background:#f7efe5;border:1px solid #e7d8ca;padding:18px 22px;">
