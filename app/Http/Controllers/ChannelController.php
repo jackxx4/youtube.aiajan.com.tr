@@ -169,7 +169,15 @@ class ChannelController extends Controller
                 });
 
                 if ($channel) {
+                    try {
+                        try {
                     $this->syncInitialVideos($channel);
+                } catch (\Throwable $syncEx) {
+                    \Log::warning('syncInitialVideos atlandı: ' . $syncEx->getMessage());
+                }
+                    } catch (\Throwable $syncEx) {
+                        \Log::warning('syncInitialVideos atlandı: ' . $syncEx->getMessage());
+                    }
 
                     // Kullanıcının kayıtlı kanal listesine ekle
                     $currentIds = (array) ($user->google_channel_ids ?? []);
@@ -239,7 +247,11 @@ class ChannelController extends Controller
                     $user->update(['google_channel_ids' => $currentIds]);
                 }
 
-                $this->syncInitialVideos($channel);
+                try {
+                    $this->syncInitialVideos($channel);
+                } catch (\Throwable $syncEx) {
+                    \Log::warning('syncInitialVideos atlandı: ' . $syncEx->getMessage());
+                }
             } catch (\DomainException $e) {
                 return back()->withErrors(['channel_id' => $e->getMessage()]);
             } catch (\Throwable $e) {
@@ -301,30 +313,38 @@ class ChannelController extends Controller
 
         $videoIds = array_unique($matches[1]);
         foreach (array_slice($videoIds, 0, 10) as $vid) {
-            if (Video::where('youtube_video_id', $vid)->exists()) {
-                continue;
+            // OEmbed ile başlık ve thumbnail çek
+            $meta = null;
+            try {
+                $oembedUrl = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' . $vid . '&format=json';
+                $chOe = curl_init($oembedUrl);
+                curl_setopt_array($chOe, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_TIMEOUT => 4,
+                    CURLOPT_SSL_VERIFYPEER => true,
+                ]);
+                $raw = curl_exec($chOe);
+                $meta = $raw ? json_decode($raw, true) : null;
+            } catch (\Throwable) {
+                // oembed hatası olursa varsayılan değerlerle devam et
             }
 
-            // OEmbed ile başlık ve thumbnail çek
-            $oembedUrl = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' . $vid . '&format=json';
-            $chOe = curl_init($oembedUrl);
-            curl_setopt_array($chOe, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 4,
-                CURLOPT_SSL_VERIFYPEER => true,
-            ]);
-            $raw = curl_exec($chOe);
-            $meta = $raw ? json_decode($raw, true) : null;
-
-            Video::create([
-                'youtube_video_id'   => $vid,
-                'youtube_channel_id' => $channel->id,
-                'title'              => $meta['title'] ?? ('Video ' . $vid),
-                'thumbnail_url'      => $meta['thumbnail_url'] ?? ('https://i.ytimg.com/vi/' . $vid . '/hqdefault.jpg'),
-                'published_at'       => now(),
-                'availability'       => 'available',
-                'last_checked_at'    => now(),
-            ]);
+            try {
+                Video::updateOrCreate(
+                    ['youtube_video_id' => $vid],
+                    [
+                        'youtube_channel_id' => $channel->id,
+                        'title'              => $meta['title'] ?? ('Video ' . $vid),
+                        'thumbnail_url'      => $meta['thumbnail_url'] ?? ('https://i.ytimg.com/vi/' . $vid . '/hqdefault.jpg'),
+                        'published_at'       => now(),
+                        'availability'       => 'available',
+                        'last_checked_at'    => now(),
+                    ]
+                );
+            } catch (\Throwable $vidEx) {
+                // Duplicate key veya diğer kısıt durumlarında kanal bağlantısını bozma
+                \Log::warning("Video updateOrCreate atlandı: {$vid}", ['error' => $vidEx->getMessage()]);
+            }
         }
     }
 
