@@ -49,7 +49,7 @@
     import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
     const firebaseConfig = {
-        apiKey: "{{ config('services.firebase.api_key', 'AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA') }}",
+        apiKey: "{{ config('services.firebase.api_key') }}",
         authDomain: "{{ config('services.firebase.project_id', 'aiajan-portfolio') }}.firebaseapp.com",
         projectId: "{{ config('services.firebase.project_id', 'aiajan-portfolio') }}",
         storageBucket: "{{ config('services.firebase.project_id', 'aiajan-portfolio') }}.firebasestorage.app"
