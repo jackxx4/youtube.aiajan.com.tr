@@ -11,11 +11,11 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', env('APP_URL').'/auth/google/callback'),
     ],
     'youtube' => [
-        'api_key' => env('YOUTUBE_API_KEY', 'AIzaSy_REDACTED_LEAKED_KEY'),
+        'api_key' => env('YOUTUBE_API_KEY'),
     ],
     'firebase' => [
-        'api_key' => env('FIREBASE_API_KEY', 'AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA'),
+        'api_key'    => env('FIREBASE_API_KEY'),
         'project_id' => env('FIREBASE_PROJECT_ID', 'aiajan-portfolio'),
-        'auth_domain' => env('FIREBASE_AUTH_DOMAIN', 'aiajan-portfolio.firebaseapp.com'),
+        'auth_domain'=> env('FIREBASE_AUTH_DOMAIN', 'aiajan-portfolio.firebaseapp.com'),
     ],
 ];

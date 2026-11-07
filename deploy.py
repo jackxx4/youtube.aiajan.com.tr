@@ -235,7 +235,11 @@ def sync_remote_env(ftp: ftplib.FTP):
         "QUEUE_CONNECTION": "sync",
         "FIREBASE_API_KEY": _env.get("FIREBASE_API_KEY", ""),
         "FIREBASE_PROJECT_ID": _env.get("FIREBASE_PROJECT_ID", ""),
+        "FIREBASE_AUTH_DOMAIN": _env.get("FIREBASE_AUTH_DOMAIN", "aiajan-portfolio.firebaseapp.com"),
         "YOUTUBE_API_KEY": _env.get("YOUTUBE_API_KEY", ""),
+        "GOOGLE_CLIENT_ID": _env.get("GOOGLE_CLIENT_ID", ""),
+        "GOOGLE_CLIENT_SECRET": _env.get("GOOGLE_CLIENT_SECRET", ""),
+        "GOOGLE_REDIRECT_URI": _env.get("GOOGLE_REDIRECT_URI", "https://youtube.aiajan.com.tr/auth/google/callback"),
         "DEPLOY_SECRET": DEPLOY_SECRET,
     }
 
