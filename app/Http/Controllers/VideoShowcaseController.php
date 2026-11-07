@@ -51,7 +51,7 @@ class VideoShowcaseController extends Controller
             'video_ids.max'      => 'Vitrinde en fazla 3 video seçebilirsiniz.',
         ]);
 
-        $ids = $data['video_ids'] ?? [];
+        $ids = array_map('intval', $data['video_ids'] ?? []);
 
         // Kanalın son 10 videosu arasından seçim yapıldığı doğrulanır
         $allowedIds = Video::where('youtube_channel_id', $channel->id)
@@ -59,6 +59,7 @@ class VideoShowcaseController extends Controller
             ->latest('published_at')
             ->limit(10)
             ->pluck('id')
+            ->map(fn($id) => (int) $id)
             ->all();
 
         foreach ($ids as $selectedId) {

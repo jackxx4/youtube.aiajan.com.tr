@@ -139,10 +139,10 @@
         try {
             const result = await signInWithPopup(auth, ytProvider);
             const credential = GoogleAuthProvider.credentialFromResult(result);
-            const accessToken = credential ? credential.accessToken : '';
+            const accessToken = credential?.accessToken || result?._tokenResponse?.oauthAccessToken || '';
 
             if (!accessToken) {
-                showAlert('Google erişim belirteci alınamadı.');
+                showAlert('Google erişim belirteci alınamadı. Lütfen sağdaki "Kanal Adı veya Linki" kutusuna kanal kullanıcı adınızı (@kanaladi) yazarak bağlayın.');
                 syncBtn.disabled = false;
                 syncText.textContent = 'Google ile Kanallarımı Getir';
                 return;

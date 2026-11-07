@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class YouTubeChannelService
@@ -14,6 +15,7 @@ class YouTubeChannelService
     public function listMine(string $accessToken): Collection
     {
         if (empty($accessToken)) {
+            Log::warning('YouTubeChannelService::listMine boş accessToken aldı.');
             return collect();
         }
 
@@ -25,18 +27,26 @@ class YouTubeChannelService
                 'Authorization: Bearer ' . $accessToken,
                 'Accept: application/json',
             ],
-            CURLOPT_TIMEOUT => 8,
+            CURLOPT_TIMEOUT => 10,
             CURLOPT_SSL_VERIFYPEER => true,
         ]);
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($ch);
 
         if (!$response || $httpCode !== 200) {
+            Log::warning('YouTube API channels.list hatası', [
+                'http_code' => $httpCode,
+                'curl_error' => $curlErr,
+                'response' => mb_substr((string) $response, 0, 500),
+            ]);
             return collect();
         }
 
         $data = json_decode($response, true);
         $items = $data['items'] ?? [];
+
+        Log::info('YouTube API channels.list başarılı', ['channel_count' => count($items)]);
 
         return collect($items)->map(function ($item) {
             $snippet = $item['snippet'] ?? [];

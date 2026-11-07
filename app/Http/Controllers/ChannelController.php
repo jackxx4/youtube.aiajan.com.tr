@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\UserChannelLink;
+use App\Models\UserVideoSelection;
+use App\Models\Video;
 use App\Models\YouTubeChannel;
 use App\Services\YouTubeChannelService;
 use Illuminate\Http\JsonResponse;
@@ -109,7 +111,8 @@ class ChannelController extends Controller
             }
 
             try {
-                DB::transaction(function () use ($user, $active, $resolved) {
+                $channel = null;
+                DB::transaction(function () use ($user, $active, $resolved, &$channel) {
                     $channel = YouTubeChannel::updateOrCreate(
                         ['youtube_channel_id' => $resolved['channel_id']],
                         [
@@ -120,12 +123,20 @@ class ChannelController extends Controller
                         ]
                     );
 
+                    // Başka bir aktif kullanıcıya bağlı mı?
                     if (UserChannelLink::where('youtube_channel_id', $channel->id)->whereNull('ended_at')->where('user_id', '<>', $user->id)->exists()) {
                         throw new \DomainException('Bu YouTube kanalı halihazırda başka bir platform üyesine bağlı.');
                     }
 
+                    // Zaten bu kanala bağlı ise değişiklik gerekmez
+                    if ($active && $active->youtube_channel_id === $channel->id) {
+                        return;
+                    }
+
+                    // Önceki aktif bağı kapat ve eski vitrin seçimlerini temizle
                     if ($active) {
                         $active->update(['ended_at' => now()]);
+                        UserVideoSelection::where('user_id', $user->id)->delete();
                     }
 
                     UserChannelLink::create([
@@ -134,6 +145,10 @@ class ChannelController extends Controller
                         'started_at' => now()
                     ]);
                 });
+
+                if ($channel) {
+                    $this->syncInitialVideos($channel);
+                }
             } catch (\DomainException $e) {
                 return back()->withErrors(['channel_input' => $e->getMessage()])->withInput();
             } catch (\Throwable $e) {
@@ -151,7 +166,10 @@ class ChannelController extends Controller
                 'channel_id' => ['required', 'string', 'exists:youtube_channels,youtube_channel_id']
             ]);
 
-            abort_unless(in_array($data['channel_id'], session('available_youtube_channels', []), true), 403);
+            $available = session('available_youtube_channels', []);
+            if (!empty($available) && !in_array($data['channel_id'], $available, true)) {
+                abort(403, 'Seçilen kanal yetkili kanallarınız arasında bulunamadı.');
+            }
 
             $channel = YouTubeChannel::where('youtube_channel_id', $data['channel_id'])->firstOrFail();
 
@@ -160,19 +178,29 @@ class ChannelController extends Controller
                     if (UserChannelLink::where('youtube_channel_id', $channel->id)->whereNull('ended_at')->where('user_id', '<>', $user->id)->exists()) {
                         throw new \DomainException('Bu YouTube kanalı başka bir platform hesabına bağlı.');
                     }
+
+                    if ($active && $active->youtube_channel_id === $channel->id) {
+                        return;
+                    }
+
                     if ($active) {
                         $active->update(['ended_at' => now()]);
+                        UserVideoSelection::where('user_id', $user->id)->delete();
                     }
+
                     UserChannelLink::create([
                         'user_id' => $user->id,
                         'youtube_channel_id' => $channel->id,
                         'started_at' => now()
                     ]);
                 });
+
+                $this->syncInitialVideos($channel);
             } catch (\DomainException $e) {
                 return back()->withErrors(['channel_id' => $e->getMessage()]);
             } catch (\Throwable $e) {
-                return back()->withErrors(['channel_id' => 'Kanal bağlantısı kaydedilemedi.']);
+                report($e);
+                return back()->withErrors(['channel_id' => 'Kanal bağlantısı kaydedilemedi: ' . $e->getMessage()]);
             }
 
             session()->forget('available_youtube_channels');
@@ -180,6 +208,68 @@ class ChannelController extends Controller
         }
 
         return back()->withErrors(['channel_input' => 'Lütfen bağlamak istediğiniz YouTube kanalını seçin veya kullanıcı adını girin.']);
+    }
+
+    /**
+     * Kanal ilk bağlandığında veya değiştirildiğinde son videoları otomatik çeker.
+     */
+    private function syncInitialVideos(YouTubeChannel $channel): void
+    {
+        // Kanala ait zaten video varsa tekrar çekmeye gerek yok
+        if (Video::where('youtube_channel_id', $channel->id)->exists()) {
+            return;
+        }
+
+        $targetUrl = $channel->custom_url
+            ? 'https://www.youtube.com/' . ltrim($channel->custom_url, '/') . '/videos'
+            : 'https://www.youtube.com/channel/' . $channel->youtube_channel_id . '/videos';
+
+        $ch = curl_init($targetUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            CURLOPT_TIMEOUT => 6,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $html = curl_exec($ch);
+
+        if (!$html) {
+            return;
+        }
+
+        preg_match_all('/"videoId":"([a-zA-Z0-9_-]{11})"/', $html, $matches);
+        if (empty($matches[1])) {
+            return;
+        }
+
+        $videoIds = array_unique($matches[1]);
+        foreach (array_slice($videoIds, 0, 10) as $vid) {
+            if (Video::where('youtube_video_id', $vid)->exists()) {
+                continue;
+            }
+
+            // OEmbed ile başlık ve thumbnail çek
+            $oembedUrl = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' . $vid . '&format=json';
+            $chOe = curl_init($oembedUrl);
+            curl_setopt_array($chOe, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 4,
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            $raw = curl_exec($chOe);
+            $meta = $raw ? json_decode($raw, true) : null;
+
+            Video::create([
+                'youtube_video_id'   => $vid,
+                'youtube_channel_id' => $channel->id,
+                'title'              => $meta['title'] ?? ('Video ' . $vid),
+                'thumbnail_url'      => $meta['thumbnail_url'] ?? ('https://i.ytimg.com/vi/' . $vid . '/hqdefault.jpg'),
+                'published_at'       => now(),
+                'availability'       => 'available',
+                'last_checked_at'    => now(),
+            ]);
+        }
     }
 
     /**
