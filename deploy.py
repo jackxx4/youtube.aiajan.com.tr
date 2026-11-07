@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-youtube.aiajan.com.tr — Akıllı Delta (Diff-Only) Canlı Dağıtım Sistemi
+youtube.aiajan.com.tr — Akıllı Delta (Diff-Only) Canlı Dağıtım & Telemetri Sistemi
 - Akıllı Delta: Yalnızca boyutu veya mtime'ı değişen dosyaları aktarır
-- Sıfır-Kesinti: Plesk Windows IIS için optimize edilmiş dosya aktarımı
-- Otomatik Geçiş: Uzak index.html placeholder temizliği ve derlenmiş view temizliği
-- Güvenli Migration: _deploy/artisan uç noktası ile canlı veritabanı şemasını günceller
+- Sıfır-Kesinti: Plesk Windows IIS ve MS SQL Server için optimize edilmiş aktarım
+- Otomatik Hata Takibi: Dağıtım sonrasında canlı hata loglarını yerele çeker ve analiz eder
+- Bağımsız Komutlar: 'log çek' / 'log oku' komutlarıyla canlı logları anlık denetler
 - Doğrulama: https://youtube.aiajan.com.tr/ adresini test eder
 """
 
@@ -12,15 +12,17 @@ import ftplib
 import io
 import json
 import os
+import re
 import ssl
 import sys
 import time
-import urllib.request
 import urllib.parse
+import urllib.request
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_FILE = BASE_DIR / ".deploy_cache.json"
+LOCAL_LOG_PATH = BASE_DIR / "storage" / "logs" / "remote_laravel.log"
 
 
 def load_env_file(path: Path) -> dict:
@@ -76,6 +78,7 @@ SKIP_NAMES = {
     ".env.deploy",
     ".deploy_cache.json",
     "database.sqlite",
+    "remote_laravel.log",
 }
 
 FTP_ERRORS = ftplib.all_errors + (OSError,)
@@ -161,7 +164,7 @@ def cleanup_plesk_placeholder(ftp: ftplib.FTP):
 
 
 def sync_remote_env(ftp: ftplib.FTP):
-    """Canlı sunucunun .env dosyasını MariaDB ve canlı ayarlarıyla yapılandırır"""
+    """Canlı sunucunun .env dosyasını MS SQL Server ve canlı ayarlarıyla yapılandırır"""
     remote_env_path = f"{REMOTE_ROOT}/.env"
     bio = io.BytesIO()
     existing_lines = []
@@ -212,7 +215,7 @@ def sync_remote_env(ftp: ftplib.FTP):
         out = "\n".join(f"{k}={v}" for k, v in env_dict.items()) + "\n"
         bio_out = io.BytesIO(out.encode("utf-8"))
         ftp.storbinary(f"STOR {remote_env_path}", bio_out)
-        print("✓ Canlı sunucu .env konfigürasyonu (MariaDB + Üretim) güncellendi.")
+        print("✓ Canlı sunucu .env konfigürasyonu (MS SQL Server + Üretim) güncellendi.")
 
 
 def clear_remote_compiled_views(ftp: ftplib.FTP) -> tuple:
@@ -279,7 +282,95 @@ def verify_live_site() -> tuple:
         return 0, False
 
 
+def pull_remote_log(verbose: bool = True) -> Path:
+    """Canlı sunucudaki storage/logs/laravel.log dosyasını yerele çeker"""
+    LOCAL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    remote_log = f"{REMOTE_ROOT}/storage/logs/laravel.log"
+    bio = io.BytesIO()
+    ftp = connect_ftp()
+    try:
+        ftp.retrbinary(f"RETR {remote_log}", bio.write)
+    except Exception as e:
+        if verbose:
+            print(f"⚠️ Canlı log çekilemedi veya henüz uzak log oluşmadı: {e}")
+        return LOCAL_LOG_PATH
+    finally:
+        try:
+            ftp.quit()
+        except Exception:
+            pass
+
+    data = bio.getvalue()
+    LOCAL_LOG_PATH.write_bytes(data)
+    if verbose:
+        size_kb = len(data) / 1024
+        line_count = len(data.decode("utf-8", errors="ignore").splitlines())
+        print(f"📥 Canlı log yerele çekildi -> {LOCAL_LOG_PATH} ({size_kb:.1f} KB, {line_count} satır)")
+    return LOCAL_LOG_PATH
+
+
+def read_error_log(limit: int = 5):
+    """Yerele çekilmiş canlı logları analiz eder ve en son hataları listeler"""
+    if not LOCAL_LOG_PATH.exists() or LOCAL_LOG_PATH.stat().st_size == 0:
+        print("ℹ️ Henüz yerelde log dosyası bulunmuyor. Önce log çekin.")
+        return
+
+    content = LOCAL_LOG_PATH.read_text(encoding="utf-8", errors="ignore")
+    lines = content.splitlines()
+
+    entries = []
+    current_entry = None
+    header_pattern = re.compile(r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \w+\.(ERROR|CRITICAL|ALERT|EMERGENCY): (.*)")
+
+    for line in lines:
+        m = header_pattern.match(line)
+        if m:
+            if current_entry:
+                entries.append(current_entry)
+            current_entry = {
+                "time": m.group(1),
+                "level": m.group(2),
+                "message": m.group(3),
+                "stack": [],
+            }
+        elif current_entry:
+            # Sadece uygulama içi veya temel stack trace satırlarını al
+            if len(current_entry["stack"]) < 3 and line.strip().startswith("#"):
+                current_entry["stack"].append(line.strip())
+
+    if current_entry:
+        entries.append(current_entry)
+
+    if not entries:
+        print("✨ Canlı loglarda herhangi bir hata kaydı bulunamadı. Sistem %100 sağlıklı!")
+        return
+
+    print("=" * 70)
+    print(f"📋 CANLI HATA LOGLARI (Toplam: {len(entries)} hata kaydı | Son {min(limit, len(entries))} gösteriliyor)")
+    print("=" * 70)
+
+    for entry in entries[-limit:]:
+        print(f"🔴 [{entry['time']}] {entry['level']}: {entry['message'][:180]}")
+        for st in entry["stack"]:
+            print(f"     {st[:140]}")
+        print("-" * 70)
+
+
 def main():
+    args_str = " ".join(sys.argv[1:]).lower()
+
+    # 1. 'log çek' / 'log-cek' komut kurgusu
+    if "cek" in args_str or "çek" in args_str or "pull" in args_str:
+        pull_remote_log(verbose=True)
+        return
+
+    # 2. 'log oku' / 'log-oku' komut kurgusu
+    if "oku" in args_str or "read" in args_str or "show" in args_str:
+        pull_remote_log(verbose=False)
+        read_error_log(limit=8)
+        return
+
+    # 3. Normal Tam Dağıtım Kurgusu
     force_all = "--all" in sys.argv
     verbose = "--verbose" in sys.argv
     start_time = time.time()
@@ -360,19 +451,28 @@ def main():
     elapsed = time.time() - start_time
 
     if status_code == 200 and has_brand:
-        print("=" * 65)
+        print("=" * 70)
         print(f"✅ CANLI SUNUCU BAŞARIYLA YAYINDA: {LIVE_URL} (HTTP {status_code})")
         print(f"⏱️ Süre: {elapsed:.2f}s | Aktarılan: {to_upload_count} dosya | Temizlenen View: {removed_views}")
-        print("=" * 65)
+        print("=" * 70)
+
+        # 6. Dağıtım Sonrası Otomatik Canlı Hata Loglarını Çek ve Kontrol Et
+        print("\n🔍 Dağıtım Sonrası Canlı Hata Logları Yerele Çekiliyor ve Kontrol Ediliyor...")
+        pull_remote_log(verbose=True)
+        read_error_log(limit=3)
+
         sys.exit(0)
     elif status_code == 200:
         print(f"⚠️ Canlı site HTTP 200 döndü ancak marka metni bulunamadı. Lütfen kontrol edin.")
+        pull_remote_log(verbose=True)
+        read_error_log(limit=3)
         sys.exit(0)
     else:
         print(f"❌ HATA: Canlı site HTTP {status_code} hatası verdi!", file=sys.stderr)
+        pull_remote_log(verbose=True)
+        read_error_log(limit=5)
         sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
-
