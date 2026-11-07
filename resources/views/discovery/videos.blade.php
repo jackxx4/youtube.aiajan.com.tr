@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title','Video Keşfi')
 @section('content')
+@php $selected = $selected ?? session('selected_video_ids'); @endphp
 <div class="eyebrow">Video havuzu</div><h1 class="h1">{{ is_array($selected)?'Seçtiğin videolar':'İçeriklere göz at' }}</h1>
 <p class="lead">En fazla 5 video seçebilirsin. İzleme tamamen isteğe bağlıdır; izlenme bir ödül, statü veya takip hakkı koşulu değildir. YouTube oynatıcısının standart kontrolleri korunur.</p>
 @if(!is_array($selected))

@@ -41,19 +41,23 @@ class DiscoveryController extends Controller {
  }
  public function videos(Request $request): View {
   $user=$request->user();
-  $videos=Video::with('channel')
-   ->where('availability','available')
-   ->whereHas('userSelections',fn($q)=>$q->where('user_id','<>',$user->id))
-   ->inRandomOrder()
-   ->limit(10)
-   ->get();
-  return view('discovery.videos',compact('videos'));
+  $selected=session('selected_video_ids');
+  try {
+   if(is_array($selected) && !empty($selected)) {
+    $videos=Video::with('channel')
+     ->whereIn('id',$selected)
+     ->where('availability','available')
+     ->get();
+   } else {
+    $videos=Video::with('channel')
+     ->where('availability','available')
+     ->inRandomOrder()
+     ->limit(10)
+     ->get();
+   }
+  } catch (\Throwable $e) {
+   $videos=collect();
+  }
+  return view('discovery.videos',compact('videos','selected'));
  }
- public function selectVideos(Request $request): RedirectResponse {
-  $data=$request->validate(['video_ids'=>['nullable','array','max:5'],'video_ids.*'=>['integer','distinct','exists:videos,id']]);
-  $ids=$data['video_ids']??[];
-  if($ids) abort_unless(Video::whereIn('id',$ids)->where('availability','available')->count()===count($ids),422);
-  session(['selected_video_ids'=>$ids]); return redirect()->route('discovery.videos');
- }
- public function resetVideoSelection(): RedirectResponse {session()->forget('selected_video_ids');return redirect()->route('discovery.videos');}
 }
