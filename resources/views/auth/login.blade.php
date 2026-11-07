@@ -27,7 +27,7 @@
     </div>
 
     <div style="margin-top:14px;">
-        <span class="muted">AIAjan ekosistemi güvencesiyle tek tıkla bağlan</span>
+        <span class="muted">aiajan ekosistemi güvencesiyle tek tıkla bağlan</span>
     </div>
 
     <!-- Giriş Kolaylığı Rehberi -->
