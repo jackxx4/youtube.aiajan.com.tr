@@ -31,6 +31,12 @@ class ProfileController extends Controller
             ? YouTubeChannel::whereIn('youtube_channel_id', $allUserChannelIds)->orderBy('title')->get()
             : collect();
 
+        // Aktif kanal haricindeki diğer kayıtlı kanallar (tekrarları önler)
+        $otherChannels = $ownedChannels->reject(fn($c) => $channel && $c->id === $channel->id)->values();
+
+        // Yalnızca sonlandırılmış geçmiş kanal bağları (aktif olanı tekrar listelemez)
+        $pastLinks = $allLinks->whereNotNull('ended_at')->values();
+
         return view('profile.show', compact(
             'profile',
             'channel',
@@ -38,6 +44,8 @@ class ProfileController extends Controller
             'activeLink',
             'allLinks',
             'ownedChannels',
+            'otherChannels',
+            'pastLinks',
             'followsCount',
             'followersCount',
             'isSupporter'

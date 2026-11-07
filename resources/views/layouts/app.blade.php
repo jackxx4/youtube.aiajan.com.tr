@@ -198,16 +198,19 @@
         <nav class="nav">
             @php
                 $cur = request()->routeIs(...['dashboard']) ? 'dashboard' :
+                    (request()->routeIs('channels*') ? 'channels' :
+                    (request()->routeIs('videos.showcase*') ? 'showcase' :
                     (request()->routeIs('discovery.users*') ? (request()->route('pool') === 'supporter' ? 'supporter' : 'discovery') :
                     (request()->routeIs('discovery.videos*') ? 'videos' :
                     (request()->routeIs('profile*') ? 'profile' :
-                    (request()->routeIs('admin*') ? 'admin' : ''))));
+                    (request()->routeIs('admin*') ? 'admin' : ''))))));
             @endphp
             <a href="{{ route('dashboard') }}" class="{{ $cur==='dashboard' ? 'active' : '' }}"><span class="nav-icon">🏠</span><span>Genel Bakış</span></a>
+            <a href="{{ route('channels.select') }}" class="{{ $cur==='channels' ? 'active' : '' }}"><span class="nav-icon">📺</span><span>Kanal Seçimi</span></a>
+            <a href="{{ route('videos.showcase') }}" class="{{ $cur==='showcase' ? 'active' : '' }}"><span class="nav-icon">✨</span><span>Video Vitrinim</span></a>
             <a href="{{ route('discovery.users', 'normal') }}" class="{{ $cur==='discovery' ? 'active' : '' }}"><span class="nav-icon">👥</span><span>Kullanıcı Keşfi</span></a>
             <a href="{{ route('discovery.users', 'supporter') }}" class="{{ $cur==='supporter' ? 'active' : '' }}"><span class="nav-icon">⭐</span><span>Destekçiler</span></a>
             <a href="{{ route('discovery.videos') }}" class="{{ $cur==='videos' ? 'active' : '' }}"><span class="nav-icon">🎬</span><span>Video Keşfi</span></a>
-            <a href="{{ route('videos.showcase') }}" class="{{ request()->routeIs('videos.showcase*') ? 'active' : '' }}"><span class="nav-icon">✨</span><span>Video Vitrinim</span></a>
             <a href="{{ route('profile.me') }}" class="{{ $cur==='profile' ? 'active' : '' }}"><span class="nav-icon">👤</span><span>Profilim</span></a>
             @if(auth()->check() && auth()->user()->role === 'admin')
                 <a href="{{ route('admin.dashboard') }}" class="{{ $cur==='admin' ? 'active' : '' }}"><span class="nav-icon">🔧</span><span>Yönetim</span></a>

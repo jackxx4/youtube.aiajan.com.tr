@@ -4,6 +4,13 @@
 @section('content')
 <div style="max-width:960px;margin:0 auto;">
 
+    @if(session('status'))
+        <div class="alert success" style="margin-bottom:20px;">{{ session('status') }}</div>
+    @endif
+    @if($errors->any())
+        <div class="alert" style="margin-bottom:20px;">{{ $errors->first() }}</div>
+    @endif
+
     <!-- 1. Üst Profil Banner & Kimlik Kartı -->
     <div class="card" style="padding:0;overflow:hidden;border:1px solid var(--line);box-shadow:0 8px 30px rgba(0,0,0,0.04);margin-bottom:24px;">
         <!-- Banner Arka Planı -->
@@ -14,7 +21,7 @@
         </div>
 
         <!-- Profil Bilgileri & Avatar -->
-        <div style="padding:0 28px 28px;position:relative;">
+        <div style="padding:0 28px 24px;position:relative;">
             <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-top:-50px;margin-bottom:16px;">
                 <!-- Avatar -->
                 <div style="position:relative;">
@@ -33,10 +40,13 @@
                 </div>
 
                 <!-- Aksiyon Butonları -->
-                <div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;">
+                <div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
                     @if($isMe)
                         <a href="{{ route('channels.select') }}" class="btn secondary" style="padding:9px 16px;font-size:13px;">
                             {{ $channel ? '⚙️ Kanalı Değiştir' : '➕ Kanal Bağla' }}
+                        </a>
+                        <a href="{{ route('videos.showcase') }}" class="btn secondary" style="padding:9px 16px;font-size:13px;">
+                            ✨ Vitrinim
                         </a>
                         <form method="post" action="{{ route('logout') }}" style="display:inline;">
                             @csrf
@@ -77,143 +87,149 @@
         </div>
     </div>
 
-    <!-- 2. Bağlı YouTube Kanalı Vitrini -->
+    <!-- 2. Temsil Edilen Aktif YouTube Kanalı -->
     @if($channel)
-        <div class="card" style="margin-bottom:24px;border-left:4px solid #e52d27;">
+        <div class="card" style="margin-bottom:24px;border-left:5px solid #e52d27;background:var(--cream);">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
                 <div style="display:flex;align-items:center;gap:16px;">
                     @if($channel->thumbnail_url)
-                        <img src="{{ $channel->thumbnail_url }}" alt="{{ $channel->title }}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid var(--line);">
+                        <img src="{{ $channel->thumbnail_url }}" alt="{{ $channel->title }}" style="width:68px;height:68px;border-radius:50%;object-fit:cover;border:2px solid var(--line);box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+                    @else
+                        <div style="width:68px;height:68px;border-radius:50%;background:var(--wine);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px;">▶</div>
                     @endif
                     <div>
-                        <div class="eyebrow" style="color:#e52d27;margin-bottom:2px;">Temsil Edilen YouTube Kanalı</div>
-                        <h2 style="font:26px 'DM Serif Display',serif;margin:2px 0 4px;">{{ $channel->title }}</h2>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                            <span style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#e52d27;">Aktif YouTube Kanalınız</span>
+                            <span style="padding:2px 8px;border-radius:4px;background:#e6f4ea;color:#137333;font-size:11px;font-weight:600;">Temsil Ediliyor</span>
+                        </div>
+                        <h2 style="font:28px 'DM Serif Display',serif;margin:0 0 4px;color:var(--ink);">{{ $channel->title }}</h2>
                         <div style="font-size:13px;color:var(--muted);">
-                            {{ $channel->custom_url ?: 'Kanal ID: ' . $channel->youtube_channel_id }}
+                            {{ $channel->custom_url ? $channel->custom_url : ('ID: ' . $channel->youtube_channel_id) }}
+                            @if($activeLink?->started_at)
+                                · Bağlantı: {{ $activeLink->started_at->translatedFormat('d M Y') }}
+                            @endif
                         </div>
                     </div>
                 </div>
 
-                <div>
-                    <a href="https://www.youtube.com/{{ $channel->custom_url ?: 'channel/' . $channel->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="padding:10px 16px;font-size:13px;display:inline-flex;gap:6px;align-items:center;">
-                        <span>Kanalı YouTube'da Gör</span>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <a href="https://www.youtube.com/{{ $channel->custom_url ? ltrim($channel->custom_url, '/') : 'channel/' . $channel->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="padding:10px 16px;font-size:13px;display:inline-flex;gap:6px;align-items:center;">
+                        <span>YouTube'da Aç</span>
                         <span>↗</span>
                     </a>
+                    @if($isMe)
+                        <a href="{{ route('channels.select') }}" class="btn" style="padding:10px 18px;font-size:13px;background:var(--wine);">
+                            Kanal Değiştir
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>
     @else
-        <!-- Kanal Bağlı Değilse Şık CTA Kartı -->
-        <div class="card" style="margin-bottom:24px;background:linear-gradient(to right,#fffdf8,#fcf6ee);border:2px dashed #d6bca8;text-align:center;padding:36px 20px;">
-            <div style="font-size:42px;margin-bottom:10px;">📺</div>
-            <h2 style="font:28px 'DM Serif Display',serif;margin:0 0 8px;color:var(--wine);">YouTube Kanalınızı Bağlayın</h2>
-            <p class="muted" style="max-width:540px;margin:0 auto 20px;line-height:1.6;">
-                Topluluk havuzlarında yer almak, diğer üreticilerin sizi keşfetmesini sağlamak ve platformda temsil edilmek için kanalınızı hemen bağlayın.
+        <!-- Kanal Bağlı Değilse Tek ve Net Bir Eylem Çağrısı -->
+        <div class="card" style="margin-bottom:24px;background:linear-gradient(135deg,#fffdfa 0%,#fdf5ec 100%);border:2px dashed var(--rust);text-align:center;padding:40px 24px;">
+            <div style="font-size:44px;margin-bottom:12px;">📺</div>
+            <h2 style="font:28px 'DM Serif Display',serif;margin:0 0 8px;color:var(--wine);">Henüz YouTube Kanalınızı Bağlamadınız</h2>
+            <p class="muted" style="max-width:540px;margin:0 auto 20px;line-height:1.6;font-size:14px;">
+                Topluluk havuzunda yer almak, videolarınızı sergilemek ve diğer üreticilerle dayanışma kurmak için kanalınızı bağlayın.
             </p>
             <a href="{{ route('channels.select') }}" class="btn" style="padding:13px 28px;font-size:15px;display:inline-flex;align-items:center;gap:8px;">
-                <span>▶ YouTube Kanalını Şimdi Bağla</span>
+                <span>➕ YouTube Kanalını Şimdi Bağla</span>
             </a>
             <div style="font-size:12px;color:var(--muted);margin-top:12px;">
-                Google ile otomatik listeleme veya <code>@kullanıcıadı</code> ile anında bağlanabilir
+                Google ile otomatik getirebilir veya <code>@kullanıcıadı</code> ile anında bağlayabilirsiniz.
             </div>
         </div>
     @endif
 
-    <!-- 3. Google Hesabındaki Tüm YouTube Kanalları -->
-    @if($isMe && $ownedChannels->count() === 0)
-    <div class="card" style="margin-bottom:24px;border:1px dashed var(--line);background:linear-gradient(to right,#fffdf8,#fcf6ee);">
-        <div style="display:flex;align-items:center;gap:14px;">
-            <span style="font-size:28px;">📡</span>
-            <div style="flex:1;">
-                <div style="font-weight:700;color:var(--wine);margin-bottom:4px;">YouTube Kanallarınızı Getirin</div>
-                <div style="font-size:13px;color:var(--muted);margin-bottom:8px;">Google hesabınızdaki tüm YouTube kanallarını bir kez senkronize edin. Sonra istediğinizi tek tıkla bağlayın.</div>
-                <div style="font-size:12px;background:#fff8e1;border:1px solid #ffe082;border-radius:7px;padding:8px 11px;color:#7a5c00;line-height:1.5;margin-bottom:12px;">⚠️ Google onay ekranında <strong>"Gelişmiş → Devam et"</strong> seçeneğiyle ilerleyin. Uygulama doğrulama sürecindedir.</div>
-                <a href="{{ route('channels.select') }}" class="btn" style="padding:9px 18px;font-size:13px;display:inline-flex;align-items:center;gap:7px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#fff"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#fff"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#fff"/></svg>
-                    Google ile Kanalları Getir
-                </a>
+    <!-- 3. Diğer Kayıtlı Kanallarınız (Yalnızca başka kanal varsa görünür - TEKRAR YOK) -->
+    @if($isMe && isset($otherChannels) && $otherChannels->count() > 0)
+        <div class="card" style="margin-bottom:24px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div class="eyebrow" style="color:var(--wine);">Diğer Kanallarınız</div>
+                <span style="font-size:12px;color:var(--muted);background:var(--sand);padding:2px 8px;border-radius:6px;">{{ $otherChannels->count() }} alternatif kanal</span>
             </div>
-        </div>
-    </div>
-    @endif
+            <p class="muted" style="font-size:13px;margin:0 0 16px;">
+                Platformda temsil etmek istediğiniz kanalı aşağıdan seçerek tek tıkla aktif edebilirsiniz.
+            </p>
 
-    @if($isMe && $ownedChannels->count() > 0)
-    <div class="card" style="margin-bottom:24px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-            <div class="eyebrow">Google Hesabımdaki Kanallar</div>
-            <span style="font-size:12px;color:var(--muted);">{{ $ownedChannels->count() }} kanal</span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-            @foreach($ownedChannels as $oc)
-            @php $isConnected = $channel && $channel->id === $oc->id; @endphp
-            <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:10px;background:{{ $isConnected ? 'var(--sand)' : 'transparent' }};border:1px solid {{ $isConnected ? 'var(--rust)' : 'var(--line)' }};">
-                @if($oc->thumbnail_url)
-                    <img src="{{ $oc->thumbnail_url }}" alt="{{ $oc->title }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">
-                @else
-                    <div style="width:44px;height:44px;border-radius:50%;background:var(--wine);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0;">▶</div>
-                @endif
-                <div style="flex:1;min-width:0;">
-                    <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $oc->title }}</div>
-                    <div style="font-size:12px;color:var(--muted);margin-top:2px;">{{ $oc->custom_url ?? ('ID: ' . $oc->youtube_channel_id) }}</div>
-                </div>
-                @if($isConnected)
-                    <span style="padding:4px 10px;border-radius:6px;background:#e6f4ea;color:#137333;font-size:12px;font-weight:600;white-space:nowrap;">✓ Aktif</span>
-                @else
-                    <form method="POST" action="{{ route('channels.store') }}" style="display:inline;">
-                        @csrf
-                        <input type="hidden" name="channel_id" value="{{ $oc->youtube_channel_id }}">
-                        <button type="submit" style="padding:4px 10px;border-radius:6px;background:var(--sand);color:var(--rust);font-size:12px;font-weight:600;white-space:nowrap;border:1px solid var(--rust);cursor:pointer;">Bağla</button>
-                    </form>
-                @endif
-            </div>
-            @endforeach
-        </div>
-    </div>
-    @endif
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                @foreach($otherChannels as $oc)
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;border-radius:10px;background:var(--cream);border:1px solid var(--line);transition:border-color 0.15s;">
+                        <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1;">
+                            @if($oc->thumbnail_url)
+                                <img src="{{ $oc->thumbnail_url }}" alt="{{ $oc->title }}" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">
+                            @else
+                                <div style="width:46px;height:46px;border-radius:50%;background:var(--sand);color:var(--wine);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0;">▶</div>
+                            @endif
+                            <div style="min-width:0;flex:1;">
+                                <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink);">{{ $oc->title }}</div>
+                                <div style="font-size:12px;color:var(--muted);margin-top:2px;">{{ $oc->custom_url ?? ('Kanal ID: ' . $oc->youtube_channel_id) }}</div>
+                            </div>
+                        </div>
 
-    <!-- 4. Kanal Geçmişi (Platform Bağlantı Tarihi) -->
-    @if($allLinks->count() > 0)
-    <div class="card" style="margin-bottom:24px;">
-        <div class="eyebrow" style="margin-bottom:14px;">Kanal Geçmişi</div>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-            @foreach($allLinks as $link)
-            @php $isActive = is_null($link->ended_at); @endphp
-            <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:10px;background:{{ $isActive ? 'var(--sand)' : 'transparent' }};border:1px solid {{ $isActive ? 'var(--rust)' : 'var(--line)' }};">
-                @if($link->channel?->thumbnail_url)
-                    <img src="{{ $link->channel->thumbnail_url }}" alt="{{ $link->channel->title }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">
-                @else
-                    <div style="width:44px;height:44px;border-radius:50%;background:var(--wine);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0;">▶</div>
-                @endif
-                <div style="flex:1;min-width:0;">
-                    <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                        {{ $link->channel?->title ?? 'Bilinmeyen Kanal' }}
+                        <form method="POST" action="{{ route('channels.store') }}" style="margin:0;flex-shrink:0;">
+                            @csrf
+                            <input type="hidden" name="channel_id" value="{{ $oc->youtube_channel_id }}">
+                            <button type="submit" class="btn secondary" style="padding:8px 14px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;border:1px solid var(--rust);color:var(--rust);">
+                                Bu Kanala Geç
+                            </button>
+                        </form>
                     </div>
-                    <div style="font-size:12px;color:var(--muted);margin-top:2px;">
-                        {{ $link->channel?->custom_url ?? ('ID: ' . ($link->channel?->youtube_channel_id ?? '-')) }}
-                        · Bağlandı: {{ $link->started_at?->translatedFormat('d M Y') ?? '-' }}
-                        @if(!$isActive && $link->ended_at)
-                            · Ayrıldı: {{ $link->ended_at->translatedFormat('d M Y') }}
-                        @endif
-                    </div>
-                </div>
-                @if($isActive)
-                    <span style="padding:4px 10px;border-radius:6px;background:#e6f4ea;color:#137333;font-size:12px;font-weight:600;white-space:nowrap;">✓ Aktif</span>
-                @elseif($isMe && $link->channel)
-                    <form method="POST" action="{{ route('channels.store') }}" style="display:inline;">
-                        @csrf
-                        <input type="hidden" name="channel_id" value="{{ $link->channel->youtube_channel_id }}">
-                        <button type="submit" style="padding:4px 10px;border-radius:6px;background:var(--sand);color:var(--rust);font-size:12px;font-weight:600;white-space:nowrap;border:1px solid var(--rust);cursor:pointer;">Tekrar Bağla</button>
-                    </form>
-                @else
-                    <span style="padding:4px 10px;border-radius:6px;background:var(--sand);color:var(--muted);font-size:12px;white-space:nowrap;">Geçmiş</span>
-                @endif
+                @endforeach
             </div>
-            @endforeach
         </div>
-    </div>
     @endif
 
-    <!-- 4. İstatistikler & Topluluk Metrikleri Grid -->
+    <!-- 4. Kanal Geçmişi (Yalnızca sonlandırılmış eski kanallar listelenir - TEKRAR YOK) -->
+    @if(isset($pastLinks) && $pastLinks->count() > 0)
+        <div class="card" style="margin-bottom:24px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div class="eyebrow">Kanal Geçmişi</div>
+                <span style="font-size:12px;color:var(--muted);">{{ $pastLinks->count() }} geçmiş bağlantı</span>
+            </div>
+            <p class="muted" style="font-size:13px;margin:0 0 16px;">
+                Daha önce bu hesapta temsil edilmiş kanalların geçmişi.
+            </p>
+
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                @foreach($pastLinks as $link)
+                    @if($link->channel)
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;border-radius:10px;background:#faf6f0;border:1px solid var(--line);">
+                            <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1;">
+                                @if($link->channel->thumbnail_url)
+                                    <img src="{{ $link->channel->thumbnail_url }}" alt="{{ $link->channel->title }}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid var(--line);flex-shrink:0;opacity:0.85;">
+                                @else
+                                    <div style="width:42px;height:42px;border-radius:50%;background:var(--sand);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0;">▶</div>
+                                @endif
+                                <div style="min-width:0;flex:1;">
+                                    <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink);">{{ $link->channel->title }}</div>
+                                    <div style="font-size:12px;color:var(--muted);margin-top:2px;">
+                                        Bağlantı: {{ $link->started_at?->translatedFormat('d M Y') ?? '-' }}
+                                        @if($link->ended_at)
+                                            · Ayrıldı: {{ $link->ended_at->translatedFormat('d M Y') }}
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if($isMe)
+                                <form method="POST" action="{{ route('channels.store') }}" style="margin:0;flex-shrink:0;">
+                                    @csrf
+                                    <input type="hidden" name="channel_id" value="{{ $link->channel->youtube_channel_id }}">
+                                    <button type="submit" class="btn secondary" style="padding:7px 13px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;">
+                                        Tekrar Bağla
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+    @endif
+
+    <!-- 5. İstatistikler & Topluluk Metrikleri Grid -->
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:24px;">
         <div class="card" style="padding:18px;">
             <div class="eyebrow">Platform Takibi</div>
@@ -244,12 +260,12 @@
         </div>
     </div>
 
-    <!-- 4. Topluluk İlkeleri & Şeffaflık Notu -->
+    <!-- 6. Topluluk İlkeleri & Şeffaflık Notu -->
     <div class="card" style="background:#f7efe5;border:1px solid #e7d8ca;padding:18px 22px;">
         <div style="display:flex;gap:12px;align-items:flex-start;">
             <span style="font-size:22px;line-height:1;">🛡️</span>
             <div style="font-size:13px;color:#614c40;line-height:1.6;">
-                <strong>Şeffaf ve Organik Topluluk İlkesi:</strong> YouTube Keşif profilinizde abone sayıları, izlenme baskısı veya yapay yarışlar gösterilmez. Platform içi takipler YouTube aboneliğinden bağımsızdır; amaç samimi üretici dayanışmasıdır.
+                <strong>Şeffaf ve Organik Topluluk İlkesi:</strong> YouTube Keşif profilinizde abone sayıları, izlenme baskısı veya yapay yarışlar sergilenmez. Amaç samimi üretici dayanışması ve birbirini keşfetmektir.
             </div>
         </div>
     </div>
