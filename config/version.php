@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'current' => '1.4.4',
-    'release_name' => 'Profilde Tüm Google Kanalları Listeleme',
-    'updated_at' => '2026-11-07T16:00:00',
+    'current' => '1.4.5',
+    'release_name' => 'Vitrinden Video Kaldırma, Tek Tıkla Ekle/Çıkar ve Vitrin Sıfırlama Desteği',
+    'updated_at' => '2026-11-07T13:30:00',
 ];
 
 

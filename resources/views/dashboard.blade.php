@@ -132,13 +132,29 @@
                         </div>
 
                         <!-- Aksiyon Butonları -->
-                        <div style="display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid var(--line);">
-                            <button type="button" class="btn secondary play-video-btn" data-video-id="{{ $video->youtube_video_id }}" data-video-title="{{ $video->title }}" style="flex:1;padding:7px 12px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:5px;">
+                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--line);">
+                            <button type="button" class="btn secondary play-video-btn" data-video-id="{{ $video->youtube_video_id }}" data-video-title="{{ $video->title }}" style="flex:1;min-width:70px;padding:7px 10px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:4px;">
                                 <span>▶ Önizle</span>
                             </button>
-                            <a href="https://www.youtube.com/watch?v={{ $video->youtube_video_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="padding:7px 12px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:4px;" title="YouTube'da Yeni Sekmede Aç">
-                                <span>YouTube ↗</span>
+                            <a href="https://www.youtube.com/watch?v={{ $video->youtube_video_id }}" target="_blank" rel="noopener noreferrer" class="btn secondary" style="padding:7px 10px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:3px;" title="YouTube'da Aç">
+                                <span>YT ↗</span>
                             </a>
+                            @if($isVitrin)
+                                <form method="POST" action="{{ route('videos.showcase.remove', $video->id) }}" style="display:inline;" onsubmit="return confirm('“{{ addslashes($video->title) }}” videosunu vitrininizden kaldırmak istediğinize emin misiniz?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn secondary" style="padding:7px 10px;font-size:12px;color:#c93b2b;background:#fff5f3;border-color:#f5c6cb;cursor:pointer;display:inline-flex;align-items:center;gap:3px;" title="Vitrinden Kaldır">
+                                        <span>✕ Kaldır</span>
+                                    </button>
+                                </form>
+                            @elseif(count($selectedVideoIds) < 3)
+                                <form method="POST" action="{{ route('videos.showcase.add_single', $video->id) }}" style="display:inline;">
+                                    @csrf
+                                    <button type="submit" class="btn secondary" style="padding:7px 10px;font-size:12px;color:var(--rust);border-color:var(--rust);cursor:pointer;display:inline-flex;align-items:center;gap:3px;" title="Vitrinde Sergile">
+                                        <span>⭐ Ekle</span>
+                                    </button>
+                                </form>
+                            @endif
                         </div>
                     </div>
                 </article>
