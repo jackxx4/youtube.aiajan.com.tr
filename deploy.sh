@@ -84,7 +84,7 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     if ! git diff-index --quiet HEAD -- 2>/dev/null; then
         echo "  [i] Yerel değişiklikler commit ediliyor..."
         # deploy.py ve deploy.sh gibi deploy araçlarını hariç tut
-        git add app/ config/ database/ resources/ routes/ bootstrap/ public/
+        git add app/ config/ database/ resources/ routes/ bootstrap/ public/ tests/
         git commit -m "deploy: canlı sunucuya dağıtıldı, loglar kontrol edildi ve doğrulandı"
     fi
 
