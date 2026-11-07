@@ -341,60 +341,93 @@
     })();
 </script>
 
-<!-- Canlı Versiyon Takip & Bildirim Motoru -->
-<script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { getFirestore, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
+<!-- Canlı Versiyon Takip & Zorunlu Yenileme Motoru -->
+<script>
+(function() {
     const CURRENT_VERSION = "{{ config('version.current', '1.4.1') }}";
+    const VERSION_URL = "{{ route('api.version') }}";
+    const RELOAD_AFTER_SEC = 10;
+    let reloadTimer = null;
+    let countdownTimer = null;
+    let triggered = false;
 
-    try {
-        const firebaseConfig = {
-            apiKey: "{{ config('services.firebase.api_key') }}",
-            authDomain: "{{ config('services.firebase.project_id', 'aiajan-portfolio') }}.firebaseapp.com",
-            projectId: "{{ config('services.firebase.project_id', 'aiajan-portfolio') }}"
-        };
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const verRef = doc(db, 'meta', 'youtube_version');
-        let firstRun = true;
-
-        onSnapshot(verRef, (snap) => {
-            if (!snap.exists()) return;
-            const remoteVer = snap.data()?.current;
-            if (firstRun) { firstRun = false; return; }
-            if (remoteVer && remoteVer !== CURRENT_VERSION) {
-                showUpdateToast(remoteVer);
+    async function checkVersion() {
+        try {
+            const res = await fetch(VERSION_URL + '?_=' + Date.now(), { cache: 'no-store' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.version && data.version !== CURRENT_VERSION && !triggered) {
+                triggered = true;
+                showCountdownToast(data.version);
             }
-        });
-    } catch (e) {
-        setInterval(async () => {
-            try {
-                const res = await fetch("{{ route('api.version') }}");
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.version && data.version !== CURRENT_VERSION) {
-                        showUpdateToast(data.version);
-                    }
-                }
-            } catch (_) {}
-        }, 60000);
+        } catch (_) {}
     }
 
-    function showUpdateToast(newVer) {
+    function showCountdownToast(newVer) {
         let t = document.getElementById('update-toast');
         if (t) t.remove();
         t = document.createElement('div');
         t.id = 'update-toast';
-        t.innerHTML = `
-            <span>🚀 Yeni sürüm <strong>v${newVer}</strong> yayında!</span>
-            <button onclick="location.reload()" style="margin-left:14px;padding:6px 12px;border:none;border-radius:6px;background:var(--wine);color:#fff;font-weight:600;cursor:pointer;">Yenile</button>
-            <button onclick="this.parentElement.remove()" style="margin-left:6px;padding:4px 8px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;">✕</button>
-        `;
+
         const isMobile = window.innerWidth <= 768;
-        t.style.cssText = `position:fixed;bottom:${isMobile ? '74px' : '24px'};right:${isMobile ? '16px' : '24px'};left:${isMobile ? '16px' : 'auto'};background:var(--cream);border:1px solid var(--line);color:var(--ink);padding:14px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:space-between;font-size:14px;z-index:99999;`;
+        t.style.cssText = [
+            'position:fixed',
+            isMobile ? 'bottom:74px' : 'bottom:24px',
+            isMobile ? 'left:16px;right:16px' : 'right:24px;left:auto;max-width:400px',
+            'background:var(--cream)',
+            'border:2px solid var(--rust)',
+            'color:var(--ink)',
+            'padding:16px 18px',
+            'border-radius:12px',
+            'box-shadow:0 10px 30px rgba(0,0,0,0.18)',
+            'font-size:14px',
+            'z-index:99999',
+            'line-height:1.5'
+        ].join(';');
+
+        function render(sec) {
+            t.innerHTML = `
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <span style="font-size:22px;line-height:1.2;">🚀</span>
+                    <div style="flex:1;">
+                        <div style="font-weight:700;color:var(--wine);margin-bottom:4px;">Yeni sürüm <span style="color:var(--rust);">v${newVer}</span> yayında</div>
+                        <div style="color:var(--muted);font-size:12px;margin-bottom:10px;">Sayfa <strong style="color:var(--ink);">${sec} saniye</strong> içinde otomatik yenilenecek.</div>
+                        <div style="display:flex;gap:8px;">
+                            <button id="reload-now-btn" style="padding:6px 14px;border:none;border-radius:6px;background:var(--wine);color:#fff;font-weight:600;cursor:pointer;font-size:13px;">Şimdi Yenile</button>
+                            <button id="reload-cancel-btn" style="padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;">Ertele</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('reload-now-btn')?.addEventListener('click', () => location.reload());
+            document.getElementById('reload-cancel-btn')?.addEventListener('click', () => {
+                clearTimeout(reloadTimer);
+                clearInterval(countdownTimer);
+                t.remove();
+                triggered = false;
+                setTimeout(checkVersion, 120000);
+            });
+        }
+
+        render(RELOAD_AFTER_SEC);
         document.body.appendChild(t);
+
+        let remaining = RELOAD_AFTER_SEC;
+        countdownTimer = setInterval(() => {
+            remaining--;
+            if (remaining <= 0) {
+                clearInterval(countdownTimer);
+                location.reload();
+            } else {
+                render(remaining);
+            }
+        }, 1000);
     }
+
+    // İlk kontrol 30 sn sonra, ardından her 60 sn
+    setTimeout(checkVersion, 30000);
+    setInterval(checkVersion, 60000);
+})();
 </script>
 
 <!-- Çerez Onay Çubuğu (Cookie Consent Banner) -->
