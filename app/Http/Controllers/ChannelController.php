@@ -96,6 +96,14 @@ class ChannelController extends Controller
         }
 
         foreach ($channels as $ch) {
+            if (!UserChannelLink::where('user_id', $user->id)->where('youtube_channel_id', $ch->id)->exists()) {
+                UserChannelLink::create([
+                    'user_id'            => $user->id,
+                    'youtube_channel_id' => $ch->id,
+                    'started_at'         => now(),
+                    'ended_at'           => now(),
+                ]);
+            }
             $chVideoIds = Video::where('youtube_channel_id', $ch->id)->pluck('id');
             $ch->showcase_count = UserVideoSelection::where('user_id', $user->id)
                 ->where(function ($q) use ($ch, $chVideoIds) {

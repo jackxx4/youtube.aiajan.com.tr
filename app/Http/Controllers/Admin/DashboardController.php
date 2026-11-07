@@ -228,6 +228,30 @@ class DashboardController extends Controller
      */
     public function channels(Request $request): View
     {
+        // Otomatik Bağ Onarımı: Kullanıcının google_channel_ids listesinde olan veya üye adıyla birebir aynı olan
+        // fakat user_channel_links tablosunda bağı eksik kalmış kanalları sahibine otomatik bağla
+        $unlinkedChannels = YouTubeChannel::whereDoesntHave('links')->get();
+        if ($unlinkedChannels->isNotEmpty()) {
+            $users = User::all();
+            foreach ($unlinkedChannels as $uch) {
+                $owner = $users->first(function (User $u) use ($uch) {
+                    $gids = (array) ($u->google_channel_ids ?? []);
+                    return in_array($uch->youtube_channel_id, $gids, true)
+                        || mb_strtolower(trim($u->name)) === mb_strtolower(trim((string) $uch->title));
+                });
+
+                if ($owner) {
+                    $hasActive = $owner->activeChannelLink()->exists();
+                    UserChannelLink::firstOrCreate(
+                        ['user_id' => $owner->id, 'youtube_channel_id' => $uch->id],
+                        ['started_at' => now(), 'ended_at' => $hasActive ? now() : null]
+                    );
+                    $gids = array_values(array_unique(array_filter(array_merge((array) ($owner->google_channel_ids ?? []), [$uch->youtube_channel_id]))));
+                    $owner->update(['google_channel_ids' => $gids]);
+                }
+            }
+        }
+
         $search = trim((string) $request->input('search', ''));
         $query = YouTubeChannel::withCount('videos')
             ->with(['links.user'])
@@ -416,6 +440,17 @@ class DashboardController extends Controller
         $userName = $user->name;
 
         DB::transaction(function () use ($user) {
+            $userChannelIds = DB::table('user_channel_links')
+                ->where('user_id', $user->id)
+                ->pluck('youtube_channel_id')
+                ->all();
+
+            $googleIds = (array) ($user->google_channel_ids ?? []);
+            if (!empty($googleIds)) {
+                $extraIds = YouTubeChannel::whereIn('youtube_channel_id', $googleIds)->pluck('id')->all();
+                $userChannelIds = array_values(array_unique(array_merge($userChannelIds, $extraIds)));
+            }
+
             DB::table('user_video_selections')->where('user_id', $user->id)->delete();
             DB::table('platform_follows')->where('follower_user_id', $user->id)->orWhere('followed_user_id', $user->id)->delete();
             DB::table('user_channel_links')->where('user_id', $user->id)->delete();
@@ -424,6 +459,20 @@ class DashboardController extends Controller
             DB::table('user_impressions')->where('viewer_user_id', $user->id)->orWhere('shown_user_id', $user->id)->delete();
             DB::table('user_blocks')->where('blocker_user_id', $user->id)->orWhere('blocked_user_id', $user->id)->delete();
             $user->delete();
+
+            // Bu üyeye ait olan ve başka hiçbir üyeye bağlı olmayan kanalları da temizle (sahipsiz kanal kalmasın)
+            if (!empty($userChannelIds)) {
+                $orphanChannels = YouTubeChannel::whereIn('id', $userChannelIds)->whereDoesntHave('links')->get();
+                foreach ($orphanChannels as $ch) {
+                    $vids = Video::where('youtube_channel_id', $ch->id)->pluck('id');
+                    if ($vids->isNotEmpty()) {
+                        UserVideoSelection::whereIn('video_id', $vids)->delete();
+                    }
+                    Video::where('youtube_channel_id', $ch->id)->delete();
+                    PlatformFollow::where('youtube_channel_id', $ch->id)->delete();
+                    $ch->delete();
+                }
+            }
         });
 
         return back()->with('status', "“{$userName}” kullanıcısı ve platformdaki tüm bağlı verileri başarıyla silindi.");
