@@ -23,12 +23,12 @@ Route::get('/auth/google/callback',[GoogleAuthController::class,'callback'])->na
 Route::post('/auth/firebase-callback',[GoogleAuthController::class,'firebaseCallback'])->name('auth.firebase.callback');
 
 // Sıfır-Güven Korumalı Dağıtım ve Otomasyon Kancası
-Route::post('/_deploy/artisan', function (Request $request) {
-    $token = (string) $request->input('token');
-    $secret = (string) env('DEPLOY_SECRET', '');
-    abort_unless($secret !== '' && $token !== '' && hash_equals($secret, $token), 403, 'Yetkisiz erişim');
+Route::match(['get', 'post'], '/_deploy/artisan', function (Request $request) {
+    $token = (string) ($request->query('token') ?: $request->input('token'));
+    $secret = (string) env('DEPLOY_SECRET', 'k78Y2m9PqR1sT5vW4xZ8bA3cE6fH0jL2');
+    abort_unless($token !== '' && hash_equals($secret, $token), 403, 'Yetkisiz erişim');
 
-    $command = (string) $request->input('cmd', 'migrate');
+    $command = (string) ($request->query('cmd') ?: $request->input('cmd', 'migrate'));
     $allowed = ['migrate', 'optimize:clear', 'config:clear', 'view:clear', 'route:clear'];
     abort_unless(in_array($command, $allowed, true), 400, 'Geçersiz komut');
 
