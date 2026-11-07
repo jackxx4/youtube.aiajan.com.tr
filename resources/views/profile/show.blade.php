@@ -119,7 +119,38 @@
         </div>
     @endif
 
-    <!-- 3. Kanal Geçmişi -->
+    <!-- 3. Google Hesabındaki Tüm YouTube Kanalları -->
+    @if($isMe && $ownedChannels->count() > 0)
+    <div class="card" style="margin-bottom:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div class="eyebrow">Google Hesabımdaki Kanallar</div>
+            <span style="font-size:12px;color:var(--muted);">{{ $ownedChannels->count() }} kanal</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            @foreach($ownedChannels as $oc)
+            @php $isConnected = $channel && $channel->id === $oc->id; @endphp
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:10px;background:{{ $isConnected ? 'var(--sand)' : 'transparent' }};border:1px solid {{ $isConnected ? 'var(--rust)' : 'var(--line)' }};">
+                @if($oc->thumbnail_url)
+                    <img src="{{ $oc->thumbnail_url }}" alt="{{ $oc->title }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">
+                @else
+                    <div style="width:44px;height:44px;border-radius:50%;background:var(--wine);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0;">▶</div>
+                @endif
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $oc->title }}</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px;">{{ $oc->custom_url ?? ('ID: ' . $oc->youtube_channel_id) }}</div>
+                </div>
+                @if($isConnected)
+                    <span style="padding:4px 10px;border-radius:6px;background:#e6f4ea;color:#137333;font-size:12px;font-weight:600;white-space:nowrap;">✓ Aktif</span>
+                @else
+                    <a href="{{ route('channels.select') }}" style="padding:4px 10px;border-radius:6px;background:var(--sand);color:var(--rust);font-size:12px;font-weight:600;white-space:nowrap;text-decoration:none;">Bağla</a>
+                @endif
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
+    <!-- 4. Kanal Geçmişi (Platform Bağlantı Tarihi) -->
     @if($allLinks->count() > 0)
     <div class="card" style="margin-bottom:24px;">
         <div class="eyebrow" style="margin-bottom:14px;">Kanal Geçmişi</div>

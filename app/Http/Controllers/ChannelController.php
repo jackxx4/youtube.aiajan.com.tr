@@ -38,6 +38,7 @@ class ChannelController extends Controller
                                 collect($item)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
                             );
                         }
+                        $request->user()->update(['google_channel_ids' => $ids]);
                     }
                 } catch (\Throwable $e) {
                     report($e);
@@ -82,6 +83,7 @@ class ChannelController extends Controller
             }
 
             session(['available_youtube_channels' => $ids]);
+            $request->user()->update(['google_channel_ids' => $ids]);
 
             return response()->json([
                 'success' => true,

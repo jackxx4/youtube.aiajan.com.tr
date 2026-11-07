@@ -18,6 +18,7 @@ class User extends Authenticatable
         'email',
         'username',
         'avatar_url',
+        'google_channel_ids',
         'password',
     ];
 
@@ -31,6 +32,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'google_channel_ids' => 'array',
         ];
     }
 
