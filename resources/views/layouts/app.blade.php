@@ -225,7 +225,7 @@
             @endif
             Daha iyi keşif, gerçek topluluk.<br>
             © {{ date('Y') }} <a href="https://aiajan.com.tr" target="_blank" style="color:#d6bca8;text-decoration:underline;">AIAjan</a>
-            <span style="font-size:11px;opacity:0.85;padding:1px 6px;border-radius:4px;background:#ffffff18;margin-left:4px;">v{{ config('version.current', '1.3.0') }}</span>
+            <span style="font-size:11px;opacity:0.85;padding:1px 6px;border-radius:4px;background:#ffffff18;margin-left:4px;">v{{ config('version.current', '1.3.1') }}</span>
         </div>
     </aside>
 
@@ -340,7 +340,7 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getFirestore, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-    const CURRENT_VERSION = "{{ config('version.current', '1.3.0') }}";
+    const CURRENT_VERSION = "{{ config('version.current', '1.3.1') }}";
 
     try {
         const firebaseConfig = {

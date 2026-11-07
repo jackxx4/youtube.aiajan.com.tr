@@ -17,10 +17,6 @@ class ChannelController extends Controller
     public function index(Request $request, YouTubeChannelService $channelsService): View|RedirectResponse
     {
         $active = $request->user()->activeChannelLink()->with('channel')->first();
-        if ($active && $active->started_at && $active->started_at->gt(now()->subDays(30))) {
-            return redirect()->route('dashboard')->with('status', 'Zaten aktif bir YouTube kanalınız bağlı.');
-        }
-
         $ids = session('available_youtube_channels', []);
 
         // Session'da liste yoksa kullanıcının kayıtlı OAuth token'ı varsa kanalları çekmeyi dene
@@ -99,10 +95,6 @@ class ChannelController extends Controller
     {
         $user = $request->user();
         $active = $user->activeChannelLink()->first();
-
-        if ($active && $active->started_at && $active->started_at->gt(now()->subDays(30))) {
-            return back()->withErrors(['channel_input' => 'Kanalınızı 30 günlük süre dolmadan değiştiremezsiniz.']);
-        }
 
         // 1. Yöntem: Kanal bağlantısı veya kullanıcı adı (@kullaniciadi) girilmişse
         if ($request->filled('channel_input')) {

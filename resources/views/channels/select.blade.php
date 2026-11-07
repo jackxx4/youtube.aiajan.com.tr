@@ -3,7 +3,27 @@
 @section('content')
 <div class="eyebrow">Hesap kurulumu</div>
 <h1 class="h1">Temsil edeceğin YouTube kanalını bağla</h1>
-<p class="lead">Toplulukta içeriklerinizi sergilemek ve diğer üreticilerle bağ kurmak için kanalınızı bağlayın. Kanal değişimi 30 günde bir yapılabilir.</p>
+<p class="lead">Toplulukta içeriklerinizi sergilemek ve diğer üreticilerle bağ kurmak için kanalınızı bağlayın veya güncelleyin.</p>
+
+@if($active && $active->channel)
+    <div class="card" style="margin-top:18px;border-left:4px solid var(--wine);background:#fbf7f2;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            @if($active->channel->thumbnail_url)
+                <img src="{{ $active->channel->thumbnail_url }}" alt="{{ $active->channel->title }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
+            @else
+                <span style="font-size:24px;">📺</span>
+            @endif
+            <div>
+                <div style="font-size:12px;color:var(--rust);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Mevcut Bağlı Kanalınız</div>
+                <strong style="color:var(--wine);font-size:16px;">{{ $active->channel->title }}</strong>
+                @if($active->channel->custom_url)
+                    <span style="font-size:13px;color:var(--muted);margin-left:6px;">({{ $active->channel->custom_url }})</span>
+                @endif
+            </div>
+        </div>
+        <span style="font-size:12px;color:var(--muted);background:var(--sand);padding:4px 10px;border-radius:6px;">Yeni bir kanal seçerek güncelleyebilirsiniz</span>
+    </div>
+@endif
 
 <div id="channel-alert" class="alert" style="display:none;margin-top:18px;"></div>
 
