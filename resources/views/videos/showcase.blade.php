@@ -4,14 +4,12 @@
 <div style="max-width:960px;margin:0 auto;">
     <p class="eyebrow">Kanal Yönetimi</p>
     <h1 class="h1">Video Vitrinim</h1>
-    <p class="lead">Topluluğa önermek istediğin <strong>en fazla 3</strong> videoyu seç. Seçtiklerin diğer kullanıcıların keşif akışında gösterilecek.</p>
+    <p class="lead">Kanalınızın <strong>son 10 videosu</strong> arasından dilediğiniz <strong>1, 2 veya en fazla 3 videoyu</strong> seçerek vitrininizde sergileyebilirsiniz. Seçtiğiniz videolar keşif akışında diğer üreticilere önerilir.</p>
 
-    @if(session('status'))
-        <div class="alert success" style="margin-top:18px;">{{ session('status') }}</div>
-    @endif
-    @if($errors->any())
-        <div class="alert" style="margin-top:18px;">{{ $errors->first() }}</div>
-    @endif
+    <!-- Ayrı Senkronizasyon Formu (HTML5 form attribute ile bağlanır, iç içe form hatasını önler) -->
+    <form method="POST" action="{{ route('videos.showcase.sync') }}" id="syncForm" style="display:none;">
+        @csrf
+    </form>
 
     @if($videos->isEmpty())
         <!-- Henüz Video Çekilmemişse Aksiyon Kartı -->
@@ -55,20 +53,25 @@
         <form method="POST" action="{{ route('videos.showcase.update') }}" id="showcaseForm">
             @csrf
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:28px 0 16px;">
-                <div style="display:flex;align-items:center;gap:14px;">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                     <span id="selCount" style="font-weight:700;font-size:15px;color:var(--rust);">
                         {{ count($selectedIds) }}/3 video seçili
                     </span>
-                    <span class="muted" style="font-size:13px;">(Vitrinde en fazla 3 video yer alır)</span>
+                    <span id="selHint" class="muted" style="font-size:13px;">
+                        @if(count($selectedIds) === 0)
+                            (En az 1, en fazla 3 video seçebilirsiniz)
+                        @elseif(count($selectedIds) === 3)
+                            (Maksimum limite ulaşıldı)
+                        @else
+                            ({{ 3 - count($selectedIds) }} video daha seçebilirsiniz)
+                        @endif
+                    </span>
                 </div>
-                <div style="display:flex;gap:10px;align-items:center;">
-                    <form method="POST" action="{{ route('videos.showcase.sync') }}" style="display:inline;">
-                        @csrf
-                        <button type="submit" style="background:transparent;border:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;">
-                            🔄 Yeniden Tara
-                        </button>
-                    </form>
-                    <button class="btn" type="submit">Vitrini Kaydet</button>
+                <div style="display:flex;gap:12px;align-items:center;">
+                    <button type="submit" form="syncForm" style="background:transparent;border:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;padding:6px 0;">
+                        🔄 Son Videoları Yeniden Tara
+                    </button>
+                    <button class="btn" type="submit" id="saveShowcaseBtn" @disabled(count($selectedIds) === 0)>Vitrini Kaydet</button>
                 </div>
             </div>
 
@@ -102,7 +105,7 @@
             </div>
 
             <div style="margin-top:24px;display:flex;gap:12px;align-items:center;">
-                <button class="btn" type="submit">Vitrini Kaydet</button>
+                <button class="btn" type="submit" id="saveShowcaseBtn2" @disabled(count($selectedIds) === 0)>Vitrini Kaydet</button>
                 <a href="{{ route('dashboard') }}" class="btn secondary">Panoya Dön</a>
             </div>
         </form>
@@ -127,6 +130,8 @@
             const form = document.getElementById('showcaseForm');
             if(!form) return;
             const countEl = document.getElementById('selCount');
+            const hintEl = document.getElementById('selHint');
+            const saveBtns = [document.getElementById('saveShowcaseBtn'), document.getElementById('saveShowcaseBtn2')];
             const boxes = form.querySelectorAll('input[type=checkbox]');
 
             function update(){
@@ -134,6 +139,20 @@
                 const n = checked.length;
                 countEl.textContent = n + '/3 video seçili';
                 countEl.style.color = n === MAX ? 'var(--wine)' : 'var(--rust)';
+
+                if(hintEl) {
+                    if (n === 0) {
+                        hintEl.textContent = '(En az 1, en fazla 3 video seçmelisiniz)';
+                    } else if (n === MAX) {
+                        hintEl.textContent = '(Maksimum vitrin sınırına ulaştınız: 3/3)';
+                    } else {
+                        hintEl.textContent = '(' + (MAX - n) + ' video daha seçebilirsiniz)';
+                    }
+                }
+
+                saveBtns.forEach(btn => {
+                    if (btn) btn.disabled = (n === 0 || n > MAX);
+                });
 
                 boxes.forEach(cb => {
                     const card = cb.closest('label');

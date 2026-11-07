@@ -225,11 +225,17 @@
             @endif
             Daha iyi keşif, gerçek topluluk.<br>
             © {{ date('Y') }} <a href="https://aiajan.com.tr" target="_blank" style="color:#d6bca8;text-decoration:underline;">aiajan</a>
-            <span style="font-size:11px;opacity:0.85;padding:1px 6px;border-radius:4px;background:#ffffff18;margin-left:4px;">v{{ config('version.current', '1.3.4') }}</span>
+            <span style="font-size:11px;opacity:0.85;padding:1px 6px;border-radius:4px;background:#ffffff18;margin-left:4px;">v{{ config('version.current', '1.3.5') }}</span>
+            <div style="margin-top:10px;font-size:11px;display:flex;gap:6px;flex-wrap:wrap;color:#bcaaa4;line-height:1.4;">
+                <a href="{{ route('privacy') }}" style="color:inherit;text-decoration:underline;">Gizlilik</a> ·
+                <a href="{{ route('cookies') }}" style="color:inherit;text-decoration:underline;">Çerez</a> ·
+                <a href="{{ route('kvkk') }}" style="color:inherit;text-decoration:underline;">KVKK</a> ·
+                <a href="{{ route('contact') }}" style="color:inherit;text-decoration:underline;">İletişim</a>
+            </div>
         </div>
     </aside>
 
-    <main class="main">
+    <main class="main" style="display:flex;flex-direction:column;min-height:100vh;">
         <header class="top">
             <div class="top-brand-group">
                 <button type="button" class="mobile-toggle" id="mobileMenuOpen" aria-label="Menüyü Aç" aria-expanded="false">
@@ -250,7 +256,7 @@
             </div>
         </header>
 
-        <section class="content">
+        <section class="content" style="flex:1;">
             @if(session('status'))
                 <div class="alert success">{{ session('status') }}</div>
             @endif
@@ -259,6 +265,26 @@
             @endif
             @yield('content')
         </section>
+
+        <!-- Platform Zengin Footer (Masaüstü ve Mobil Uyumlu) -->
+        <footer style="margin-top:auto;padding:32px 30px 24px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+                <div>
+                    <strong style="color:var(--wine);font-size:15px;font-family:'DM Serif Display',serif;">YouTube Keşif</strong>
+                    <span style="margin-left:6px;">· Bağımsız İçerik Üretici Ekosistemi</span>
+                </div>
+                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+                    <a href="{{ route('privacy') }}" style="color:inherit;text-decoration:underline;">Gizlilik</a>
+                    <a href="{{ route('cookies') }}" style="color:inherit;text-decoration:underline;">Çerez Politikası</a>
+                    <a href="{{ route('kvkk') }}" style="color:inherit;text-decoration:underline;">KVKK</a>
+                    <a href="{{ route('contact') }}" style="color:inherit;text-decoration:underline;">İletişim & Destek</a>
+                    <a href="https://aiajan.com.tr" target="_blank" style="color:var(--rust);text-decoration:underline;font-weight:600;">aiajan.com.tr ↗</a>
+                </div>
+            </div>
+            <div style="margin-top:10px;font-size:11.5px;opacity:0.8;">
+                © {{ date('Y') }} YouTube Keşif. Platform takipleri YouTube aboneliği değildir. Tüm hakları saklıdır.
+            </div>
+        </footer>
     </main>
 </div>
 
@@ -340,7 +366,7 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getFirestore, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-    const CURRENT_VERSION = "{{ config('version.current', '1.3.4') }}";
+    const CURRENT_VERSION = "{{ config('version.current', '1.3.5') }}";
 
     try {
         const firebaseConfig = {
@@ -389,6 +415,40 @@
         t.style.cssText = `position:fixed;bottom:${isMobile ? '74px' : '24px'};right:${isMobile ? '16px' : '24px'};left:${isMobile ? '16px' : 'auto'};background:var(--cream);border:1px solid var(--line);color:var(--ink);padding:14px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:space-between;font-size:14px;z-index:99999;`;
         document.body.appendChild(t);
     }
+</script>
+
+<!-- Çerez Onay Çubuğu (Cookie Consent Banner) -->
+<div id="cookieBanner" style="display:none;position:fixed;bottom:24px;left:20px;right:20px;max-width:580px;margin:0 auto;background:#201a17;color:#fbf7f2;border-radius:14px;padding:16px 20px;box-shadow:0 12px 36px rgba(0,0,0,0.45);z-index:99999;border:1px solid #3c312c;">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="font-size:26px;line-height:1;">🍪</span>
+        <div style="flex:1;min-width:220px;font-size:12.5px;line-height:1.5;">
+            Deneyiminizi optimize etmek ve platform güvenliğini sağlamak için asgari çerezler kullanıyoruz. Detaylar için <a href="{{ route('cookies') }}" style="color:#d6bca8;text-decoration:underline;">Çerez Politikası</a> ve <a href="{{ route('kvkk') }}" style="color:#d6bca8;text-decoration:underline;">KVKK</a> metinlerimizi inceleyebilirsiniz.
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <button type="button" id="cookieAcceptBtn" class="btn" style="padding:7px 16px;font-size:12px;background:var(--rust);color:#fff;border:none;cursor:pointer;">Kabul Et</button>
+            <button type="button" id="cookieDismissBtn" class="btn secondary" style="padding:7px 12px;font-size:12px;background:transparent;color:#d6bca8;border:1px solid #ffffff26;cursor:pointer;">Kapat</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    try {
+        const choice = localStorage.getItem('cookie_consent_choice');
+        const banner = document.getElementById('cookieBanner');
+        if(!choice && banner) {
+            banner.style.display = 'block';
+        }
+        document.getElementById('cookieAcceptBtn')?.addEventListener('click', function(){
+            localStorage.setItem('cookie_consent_choice', 'accepted');
+            if(banner) banner.style.display = 'none';
+        });
+        document.getElementById('cookieDismissBtn')?.addEventListener('click', function(){
+            localStorage.setItem('cookie_consent_choice', 'dismissed');
+            if(banner) banner.style.display = 'none';
+        });
+    } catch(e) {}
+})();
 </script>
 </body>
 </html>

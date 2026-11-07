@@ -21,9 +21,11 @@ class VideoShowcaseController extends Controller
                 ->withErrors(['channel' => 'Video seçimi için önce bir kanal bağlamalısınız.']);
         }
 
+        // Kanalın en son 10 videosu listelenir
         $videos = Video::where('youtube_channel_id', $channel->id)
             ->where('availability', 'available')
             ->latest('published_at')
+            ->limit(10)
             ->get();
 
         $selectedIds = UserVideoSelection::where('user_id', $user->id)
@@ -35,23 +37,34 @@ class VideoShowcaseController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'video_ids'   => ['nullable', 'array', 'max:3'],
-            'video_ids.*' => ['integer', 'distinct', 'exists:videos,id'],
-        ]);
-
-        $ids = $data['video_ids'] ?? [];
         $user = $request->user();
         $channel = $user->activeChannelLink?->channel;
 
         abort_unless($channel, 422, 'Aktif kanal bulunamadı.');
 
-        if (!empty($ids)) {
-            $valid = Video::whereIn('id', $ids)
-                ->where('youtube_channel_id', $channel->id)
-                ->where('availability', 'available')
-                ->count();
-            abort_unless($valid === count($ids), 422, 'Yalnızca kendi kanalınızdaki videolar seçilebilir.');
+        $data = $request->validate([
+            'video_ids'   => ['required', 'array', 'min:1', 'max:3'],
+            'video_ids.*' => ['integer', 'distinct', 'exists:videos,id'],
+        ], [
+            'video_ids.required' => 'Lütfen vitrininizde sergilemek için en az 1 video seçin.',
+            'video_ids.min'      => 'Vitrininizde sergilemek için en az 1 video seçmelisiniz.',
+            'video_ids.max'      => 'Vitrinde en fazla 3 video seçebilirsiniz.',
+        ]);
+
+        $ids = $data['video_ids'] ?? [];
+
+        // Kanalın son 10 videosu arasından seçim yapıldığı doğrulanır
+        $allowedIds = Video::where('youtube_channel_id', $channel->id)
+            ->where('availability', 'available')
+            ->latest('published_at')
+            ->limit(10)
+            ->pluck('id')
+            ->all();
+
+        foreach ($ids as $selectedId) {
+            if (!in_array($selectedId, $allowedIds, true)) {
+                return back()->withErrors(['video_ids' => 'Yalnızca kanalınızın son 10 videosu arasından seçim yapabilirsiniz.']);
+            }
         }
 
         DB::transaction(function () use ($user, $ids) {
@@ -62,7 +75,7 @@ class VideoShowcaseController extends Controller
         });
 
         return redirect()->route('videos.showcase')
-            ->with('status', count($ids) . ' video vitrininize kaydedildi.');
+            ->with('status', count($ids) . ' video vitrininize başarıyla kaydedildi! (1-3 video hakkınızdan ' . count($ids) . ' tanesini kullandınız)');
     }
 
     /**

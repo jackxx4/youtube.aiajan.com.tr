@@ -18,6 +18,10 @@ Route::get('/api/version', fn() => response()->json([
 
 Route::get('/',fn()=>view('welcome'))->name('home');
 Route::get('/gizlilik',fn()=>view('gizlilik'))->name('privacy');
+Route::get('/cerez-politikasi',fn()=>view('cerez'))->name('cookies');
+Route::get('/kvkk',fn()=>view('kvkk'))->name('kvkk');
+Route::get('/iletisim',[App\Http\Controllers\ContactController::class,'index'])->name('contact');
+Route::post('/iletisim',[App\Http\Controllers\ContactController::class,'send'])->name('contact.send')->middleware('throttle:5,1');
 Route::get('/giris',fn()=>view('auth.login'))->name('login');
 Route::get('/auth/google',[GoogleAuthController::class,'redirect'])->name('auth.google');
 Route::get('/auth/google/callback',[GoogleAuthController::class,'callback'])->name('auth.google.callback');
