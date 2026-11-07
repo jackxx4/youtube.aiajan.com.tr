@@ -11,10 +11,10 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', env('APP_URL').'/auth/google/callback'),
     ],
     'youtube' => [
-        'api_key' => env('YOUTUBE_API_KEY', 'BURAYA_YAZILACAK'),
+        'api_key' => env('YOUTUBE_API_KEY', 'AIzaSy_REDACTED_LEAKED_KEY'),
     ],
     'firebase' => [
-        'api_key' => env('FIREBASE_API_KEY', 'AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA'),
-        'project_id' => env('FIREBASE_PROJECT_ID', 'aiajan-portfolio'),
+        'api_key' => env('FIREBASE_API_KEY', 'AIzaSyCo1tR3DzrC0cmh5nBCLV9wC4i8uLox9SI'),
+        'project_id' => env('FIREBASE_PROJECT_ID', 'aiajan-youtube'),
     ],
 ];
