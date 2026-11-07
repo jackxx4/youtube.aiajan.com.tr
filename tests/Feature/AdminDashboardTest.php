@@ -218,5 +218,47 @@ class AdminDashboardTest extends TestCase
         $this->assertDatabaseMissing('user_video_selections', ['video_id' => $video->id]);
         $this->assertDatabaseMissing('user_channel_links', ['youtube_channel_id' => $channel->id]);
     }
+
+    public function test_admin_can_access_channels_page(): void
+    {
+        $admin = \App\Models\Admin::firstOrCreate(
+            ['username' => 'emrah'],
+            [
+                'name'      => 'Emrah',
+                'email'     => 'emrah@aiajan.com.tr',
+                'password'  => Hash::make('985758'),
+                'role'      => 'super_admin',
+                'is_active' => true,
+            ]
+        );
+
+        $response = $this->actingAs($admin, 'admin')->get(route('admin.channels'));
+        $response->assertStatus(200);
+        $response->assertSee('Kanal Yönetimi');
+    }
+
+    public function test_admin_can_clean_orphan_channels(): void
+    {
+        $admin = \App\Models\Admin::firstOrCreate(
+            ['username' => 'emrah'],
+            [
+                'name'      => 'Emrah',
+                'email'     => 'emrah@aiajan.com.tr',
+                'password'  => Hash::make('985758'),
+                'role'      => 'super_admin',
+                'is_active' => true,
+            ]
+        );
+
+        $orphan = \App\Models\YouTubeChannel::create([
+            'youtube_channel_id' => 'UC_ORPHAN_CH',
+            'title'              => 'Sahipsiz Kanal',
+            'is_active'          => true,
+        ]);
+
+        $response = $this->actingAs($admin, 'admin')->post(route('admin.channels.clean_orphans'));
+        $response->assertSessionHas('status');
+        $this->assertDatabaseMissing('youtube_channels', ['id' => $orphan->id]);
+    }
 }
 

@@ -114,8 +114,61 @@ class DashboardController extends Controller
 
         $users = $query->paginate(20)->withQueryString();
         $totalUsers = User::count();
+        $totalChannels = YouTubeChannel::count();
 
-        return view('admin.users', compact('users', 'search', 'role', 'status', 'totalUsers'));
+        return view('admin.users', compact('users', 'search', 'role', 'status', 'totalUsers', 'totalChannels'));
+    }
+
+    /**
+     * Müstakil YouTube Kanal Yönetimi Sayfası
+     */
+    public function channels(Request $request): View
+    {
+        $search = trim((string) $request->input('search', ''));
+        $query = YouTubeChannel::withCount('videos')
+            ->with(['links.user'])
+            ->latest('id');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('youtube_channel_id', 'like', "%{$search}%")
+                  ->orWhere('custom_url', 'like', "%{$search}%");
+            });
+        }
+
+        $channels = $query->paginate(20)->withQueryString();
+        $totalChannels = YouTubeChannel::count();
+        $orphanCount = YouTubeChannel::whereDoesntHave('links')->count();
+
+        return view('admin.channels', compact('channels', 'search', 'totalChannels', 'orphanCount'));
+    }
+
+    /**
+     * Hiçbir kullanıcıya bağlı olmayan sahipsiz kanalları topluca siler.
+     */
+    public function cleanOrphanChannels(): RedirectResponse
+    {
+        $orphans = YouTubeChannel::whereDoesntHave('links')->get();
+        $count = $orphans->count();
+
+        if ($count === 0) {
+            return back()->with('status', 'Temizlenecek sahipsiz kanal bulunamadı.');
+        }
+
+        DB::transaction(function () use ($orphans) {
+            foreach ($orphans as $channel) {
+                $videoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
+                if ($videoIds->isNotEmpty()) {
+                    UserVideoSelection::whereIn('video_id', $videoIds)->delete();
+                }
+                Video::where('youtube_channel_id', $channel->id)->delete();
+                PlatformFollow::where('youtube_channel_id', $channel->id)->delete();
+                $channel->delete();
+            }
+        });
+
+        return back()->with('status', "Toplam {$count} adet sahipsiz YouTube kanalı ve bunlara ait tüm veriler başarıyla temizlendi.");
     }
 
     /**

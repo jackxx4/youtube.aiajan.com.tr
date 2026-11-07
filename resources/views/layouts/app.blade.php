@@ -171,53 +171,96 @@
 </head>
 <body>
 
+@php
+    $isAdminRoute = request()->routeIs('admin.*');
+@endphp
+
 <!-- Mobil Karartma Perdesi -->
 <div class="mobile-backdrop" id="mobileBackdrop" aria-hidden="true"></div>
 
 <div class="shell">
     <aside class="side" id="sideMenu" role="navigation" aria-label="Ana Gezinme Menüsü" aria-hidden="true">
         <div class="side-head">
-            <a class="brand" href="{{ route('home') }}">YouTube Keşif<small>aiajan.com.tr topluluğu</small></a>
+            @if($isAdminRoute)
+                <a class="brand" href="{{ route('admin.dashboard') }}">Yönetim<small>aiajan.com.tr denetim</small></a>
+            @else
+                <a class="brand" href="{{ route('home') }}">YouTube Keşif<small>aiajan.com.tr topluluğu</small></a>
+            @endif
             <button type="button" class="mobile-close" id="mobileMenuClose" aria-label="Menüyü Kapat">✕</button>
         </div>
 
-        @if(auth()->check())
-            <div class="mobile-user-card">
-                <div class="person">
-                    <div class="avatar" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:#ffffff22;color:#fff;font-weight:700;font-size:15px;border-radius:50%;">
-                        {{ strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}
-                    </div>
-                    <div style="overflow:hidden;">
-                        <div style="font-weight:600;font-size:13px;color:#fff;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">{{ auth()->user()->name }}</div>
-                        <div style="font-size:11px;color:#d6bca8;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">{{ auth()->user()->activeChannelLink?->title ?? 'Kanal bağlı değil' }}</div>
+        @if($isAdminRoute)
+            @if(Auth::guard('admin')->check())
+                <div class="mobile-user-card" style="display:block;background:#ffffff15;border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+                    <div class="person">
+                        <div class="avatar" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--rust);color:#fff;font-weight:700;font-size:16px;border-radius:50%;">
+                            🛡️
+                        </div>
+                        <div style="overflow:hidden;">
+                            <div style="font-weight:700;font-size:13px;color:#fff;">{{ Auth::guard('admin')->user()->name ?? 'Yönetici' }}</div>
+                            <div style="font-size:11px;color:#e0a899;">Platform Yöneticisi</div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            @endif
+
+            <nav class="nav">
+                <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                    <span class="nav-icon">📊</span><span>Genel Bakış</span>
+                </a>
+                <a href="{{ route('admin.users') }}" class="{{ request()->routeIs('admin.users*') ? 'active' : '' }}">
+                    <span class="nav-icon">👥</span><span>Üye ve Hesaplar</span>
+                </a>
+                <a href="{{ route('home') }}" target="_blank">
+                    <span class="nav-icon">🌐</span><span>Site Ana Sayfası ↗</span>
+                </a>
+            </nav>
+        @else
+            @if(auth()->check())
+                <div class="mobile-user-card">
+                    <div class="person">
+                        <div class="avatar" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:#ffffff22;color:#fff;font-weight:700;font-size:15px;border-radius:50%;">
+                            {{ strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}
+                        </div>
+                        <div style="overflow:hidden;">
+                            <div style="font-weight:600;font-size:13px;color:#fff;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">{{ auth()->user()->name }}</div>
+                            <div style="font-size:11px;color:#d6bca8;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">{{ auth()->user()->activeChannelLink?->title ?? 'Kanal bağlı değil' }}</div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <nav class="nav">
+                @php
+                    $cur = request()->routeIs(...['dashboard']) ? 'dashboard' :
+                        (request()->routeIs('channels*') ? 'channels' :
+                        (request()->routeIs('videos.showcase*') ? 'showcase' :
+                        (request()->routeIs('discovery.users*') ? (request()->route('pool') === 'supporter' ? 'supporter' : 'discovery') :
+                        (request()->routeIs('discovery.videos*') ? 'videos' :
+                        (request()->routeIs('profile*') ? 'profile' :
+                        (request()->routeIs('admin*') ? 'admin' : ''))))));
+                @endphp
+                <a href="{{ route('dashboard') }}" class="{{ $cur==='dashboard' ? 'active' : '' }}"><span class="nav-icon">🏠</span><span>Genel Bakış</span></a>
+                <a href="{{ route('channels.select') }}" class="{{ $cur==='channels' ? 'active' : '' }}"><span class="nav-icon">📺</span><span>Kanal Seçimi</span></a>
+                <a href="{{ route('videos.showcase') }}" class="{{ $cur==='showcase' ? 'active' : '' }}"><span class="nav-icon">✨</span><span>Video Vitrinim</span></a>
+                <a href="{{ route('discovery.users', 'normal') }}" class="{{ $cur==='discovery' ? 'active' : '' }}"><span class="nav-icon">👥</span><span>Kullanıcı Keşfi</span></a>
+                <a href="{{ route('discovery.users', 'supporter') }}" class="{{ $cur==='supporter' ? 'active' : '' }}"><span class="nav-icon">⭐</span><span>Destekçiler</span></a>
+                <a href="{{ route('discovery.videos') }}" class="{{ $cur==='videos' ? 'active' : '' }}"><span class="nav-icon">🎬</span><span>Video Keşfi</span></a>
+                @if(auth()->check() && auth()->user()->role === 'admin')
+                    <a href="{{ route('admin.dashboard') }}" class="{{ $cur==='admin' ? 'active' : '' }}"><span class="nav-icon">🔧</span><span>Yönetim</span></a>
+                @endif
+            </nav>
         @endif
 
-        <nav class="nav">
-            @php
-                $cur = request()->routeIs(...['dashboard']) ? 'dashboard' :
-                    (request()->routeIs('channels*') ? 'channels' :
-                    (request()->routeIs('videos.showcase*') ? 'showcase' :
-                    (request()->routeIs('discovery.users*') ? (request()->route('pool') === 'supporter' ? 'supporter' : 'discovery') :
-                    (request()->routeIs('discovery.videos*') ? 'videos' :
-                    (request()->routeIs('profile*') ? 'profile' :
-                    (request()->routeIs('admin*') ? 'admin' : ''))))));
-            @endphp
-            <a href="{{ route('dashboard') }}" class="{{ $cur==='dashboard' ? 'active' : '' }}"><span class="nav-icon">🏠</span><span>Genel Bakış</span></a>
-            <a href="{{ route('channels.select') }}" class="{{ $cur==='channels' ? 'active' : '' }}"><span class="nav-icon">📺</span><span>Kanal Seçimi</span></a>
-            <a href="{{ route('videos.showcase') }}" class="{{ $cur==='showcase' ? 'active' : '' }}"><span class="nav-icon">✨</span><span>Video Vitrinim</span></a>
-            <a href="{{ route('discovery.users', 'normal') }}" class="{{ $cur==='discovery' ? 'active' : '' }}"><span class="nav-icon">👥</span><span>Kullanıcı Keşfi</span></a>
-            <a href="{{ route('discovery.users', 'supporter') }}" class="{{ $cur==='supporter' ? 'active' : '' }}"><span class="nav-icon">⭐</span><span>Destekçiler</span></a>
-            <a href="{{ route('discovery.videos') }}" class="{{ $cur==='videos' ? 'active' : '' }}"><span class="nav-icon">🎬</span><span>Video Keşfi</span></a>
-            @if(auth()->check() && auth()->user()->role === 'admin')
-                <a href="{{ route('admin.dashboard') }}" class="{{ $cur==='admin' ? 'active' : '' }}"><span class="nav-icon">🔧</span><span>Yönetim</span></a>
-            @endif
-        </nav>
-
         <div class="sidefoot">
-            @if(auth()->check())
+            @if($isAdminRoute)
+                <div style="margin-bottom:12px;">
+                    <form method="post" action="{{ route('admin.logout') }}">
+                        @csrf
+                        <button class="btn secondary" type="submit" style="width:100%;padding:9px;font-size:13px;background:#ffffff1a;color:#fff;border:1px solid #ffffff26;">🚪 Yönetici Çıkışı</button>
+                    </form>
+                </div>
+            @elseif(auth()->check())
                 <div style="margin-bottom:12px;">
                     <form method="post" action="{{ route('logout') }}">
                         @csrf
@@ -243,11 +286,21 @@
                 <button type="button" class="mobile-toggle" id="mobileMenuOpen" aria-label="Menüyü Aç" aria-expanded="false">
                     ☰
                 </button>
-                <a href="{{ route('home') }}" class="mobile-top-brand">YouTube Keşif</a>
-                <span class="desktop-top-text"><a href="https://aiajan.com.tr" target="_blank" style="color:var(--muted);text-decoration:none;font-weight:600;">aiajan.com.tr</a> · Bağımsız içerik üretici topluluğu</span>
+                @if($isAdminRoute)
+                    <a href="{{ route('admin.dashboard') }}" class="mobile-top-brand">Yönetim Merkezi</a>
+                    <span class="desktop-top-text"><strong style="color:var(--wine);">Platform Yönetim ve Denetim Merkezi</strong> · MIT Seviyesi Sıfır-Güven</span>
+                @else
+                    <a href="{{ route('home') }}" class="mobile-top-brand">YouTube Keşif</a>
+                    <span class="desktop-top-text"><a href="https://aiajan.com.tr" target="_blank" style="color:var(--muted);text-decoration:none;font-weight:600;">aiajan.com.tr</a> · Bağımsız içerik üretici topluluğu</span>
+                @endif
             </div>
             <div>
-                @if(auth()->check())
+                @if($isAdminRoute)
+                    <form method="post" action="{{ route('admin.logout') }}" style="display:inline;">
+                        @csrf
+                        <button class="btn secondary" type="submit" style="padding:8px 14px;font-size:13px;background:var(--wine);color:#fff;">🚪 Yönetici Çıkışı</button>
+                    </form>
+                @elseif(auth()->check())
                     <form method="post" action="{{ route('logout') }}" style="display:inline;">
                         @csrf
                         <button class="btn secondary" type="submit" style="padding:8px 14px;font-size:13px;">Çıkış yap</button>
@@ -271,28 +324,45 @@
 </div>
 
 <!-- Mobil Alt Gezinme Çubuğu (Bottom Navigation Bar) -->
-<nav class="bottom-nav" role="navigation" aria-label="Mobil Hızlı Menü">
-    <a href="{{ route('dashboard') }}" class="bottom-nav-item {{ $cur==='dashboard' ? 'active' : '' }}">
-        <span class="bottom-icon">🏠</span>
-        <span>Panel</span>
-    </a>
-    <a href="{{ route('discovery.users', 'normal') }}" class="bottom-nav-item {{ $cur==='discovery' ? 'active' : '' }}">
-        <span class="bottom-icon">👥</span>
-        <span>Keşfet</span>
-    </a>
-    <a href="{{ route('discovery.videos') }}" class="bottom-nav-item {{ $cur==='videos' ? 'active' : '' }}">
-        <span class="bottom-icon">🎬</span>
-        <span>Videolar</span>
-    </a>
-    <a href="{{ route('videos.showcase') }}" class="bottom-nav-item {{ $cur==='showcase' ? 'active' : '' }}">
-        <span class="bottom-icon">✨</span>
-        <span>Vitrin</span>
-    </a>
-    <button type="button" class="bottom-nav-item" id="bottomMenuToggle" aria-label="Tüm Menüyü Aç">
-        <span class="bottom-icon">☰</span>
-        <span>Menü</span>
-    </button>
-</nav>
+@if($isAdminRoute)
+    <nav class="bottom-nav" role="navigation" aria-label="Mobil Yönetim Menüsü">
+        <a href="{{ route('admin.dashboard') }}" class="bottom-nav-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+            <span class="bottom-icon">📊</span>
+            <span>Özet</span>
+        </a>
+        <a href="{{ route('admin.users') }}" class="bottom-nav-item {{ request()->routeIs('admin.users*') ? 'active' : '' }}">
+            <span class="bottom-icon">👥</span>
+            <span>Üyeler</span>
+        </a>
+        <button type="button" class="bottom-nav-item" id="bottomMenuToggle" aria-label="Tüm Menüyü Aç">
+            <span class="bottom-icon">☰</span>
+            <span>Menü</span>
+        </button>
+    </nav>
+@else
+    <nav class="bottom-nav" role="navigation" aria-label="Mobil Hızlı Menü">
+        <a href="{{ route('dashboard') }}" class="bottom-nav-item {{ $cur==='dashboard' ? 'active' : '' }}">
+            <span class="bottom-icon">🏠</span>
+            <span>Panel</span>
+        </a>
+        <a href="{{ route('discovery.users', 'normal') }}" class="bottom-nav-item {{ $cur==='discovery' ? 'active' : '' }}">
+            <span class="bottom-icon">👥</span>
+            <span>Keşfet</span>
+        </a>
+        <a href="{{ route('discovery.videos') }}" class="bottom-nav-item {{ $cur==='videos' ? 'active' : '' }}">
+            <span class="bottom-icon">🎬</span>
+            <span>Videolar</span>
+        </a>
+        <a href="{{ route('videos.showcase') }}" class="bottom-nav-item {{ $cur==='showcase' ? 'active' : '' }}">
+            <span class="bottom-icon">✨</span>
+            <span>Vitrin</span>
+        </a>
+        <button type="button" class="bottom-nav-item" id="bottomMenuToggle" aria-label="Tüm Menüyü Aç">
+            <span class="bottom-icon">☰</span>
+            <span>Menü</span>
+        </button>
+    </nav>
+@endif
 
 <!-- Mobil Menü JavaScript Kontrolcüsü -->
 <script>

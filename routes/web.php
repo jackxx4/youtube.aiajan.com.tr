@@ -79,6 +79,8 @@ Route::prefix('yonetim')->name('admin.')->group(function () {
     Route::middleware('admin')->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('/kullanicilar', [AdminDashboardController::class, 'users'])->name('users');
+        Route::get('/kanallar', [AdminDashboardController::class, 'channels'])->name('channels');
+        Route::post('/kanallar/sahipsiz-temizle', [AdminDashboardController::class, 'cleanOrphanChannels'])->name('channels.clean_orphans');
         Route::post('/kullanici/{user}/rol', [AdminDashboardController::class, 'toggleRole'])->name('users.toggle_role');
         Route::post('/kullanici/{user}/durum', [AdminDashboardController::class, 'toggleStatus'])->name('users.toggle_status');
         Route::delete('/kullanici/{user}', [AdminDashboardController::class, 'destroyUser'])->name('users.destroy');
