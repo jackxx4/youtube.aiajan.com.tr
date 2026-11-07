@@ -41,7 +41,7 @@ _env = {}
 _env.update(load_env_file(BASE_DIR / ".env"))
 _env.update(load_env_file(BASE_DIR / ".env.deploy"))
 
-FIRESTORE_PROJECT = _env.get("FIREBASE_PROJECT_ID", "aiajan-portfolio")
+FIRESTORE_PROJECT = _env.get("FIREBASE_PROJECT_ID", "aiajan-youtube")
 
 
 def get_current_version() -> str:
@@ -235,6 +235,7 @@ def sync_remote_env(ftp: ftplib.FTP):
         "QUEUE_CONNECTION": "sync",
         "FIREBASE_API_KEY": _env.get("FIREBASE_API_KEY", ""),
         "FIREBASE_PROJECT_ID": _env.get("FIREBASE_PROJECT_ID", ""),
+        "YOUTUBE_API_KEY": _env.get("YOUTUBE_API_KEY", ""),
         "DEPLOY_SECRET": DEPLOY_SECRET,
     }
 

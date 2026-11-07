@@ -125,9 +125,10 @@ Yerel geliştirme → git push origin main
 
 ## 5. Google OAuth & Firebase
 
-- Login akışı: **Firebase** (`aiajan-portfolio` projesi) üzerinden `signInWithPopup`.
+- Proje Ayrımı: `aiajan.com.tr` ana portföy projesi `aiajan-portfolio` üzerinde; `youtube.aiajan.com.tr` ise müstakil olarak `aiajan-youtube` (Proje No: `377868675663`) Firebase & GCP projesinde çalışmaktadır.
+- Login akışı: **Firebase** (`aiajan-youtube` projesi) üzerinden `signInWithPopup`.
 - YouTube kanal sync: Firebase Google OAuth popup → `youtube.readonly` scope.
-- OAuth consent screen: `aiajan-portfolio` Firebase projesinin bağlı Google Cloud projesinde yapılandırılmalıdır.
+- OAuth consent screen: `aiajan-youtube` Google Cloud projesinde yapılandırılmalıdır (Authorized Domain: `aiajan.com.tr` ve `aiajan-youtube.firebaseapp.com`).
 - Gizlilik politikası URL'si (Google doğrulaması için): `https://youtube.aiajan.com.tr/gizlilik`
 
 ---
