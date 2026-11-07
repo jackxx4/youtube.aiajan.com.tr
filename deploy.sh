@@ -36,6 +36,32 @@ if [ "$ARG1" = "log" ] && [ "$ARG2" = "oku" -o "$ARG2" = "read" ] || [ "$ARG1" =
     exit 0
 fi
 
+# Alt Komut: Versiyon
+if [ "$ARG1" = "versiyon" ] || [ "$ARG1" = "version" ]; then
+    echo "================================================================="
+    echo "🏷️ YOUTUBE KEŞİF VERSİYON BİLGİSİ"
+    echo "================================================================="
+    python3 -c "
+import urllib.request, ssl, json
+with open('config/version.php') as f:
+    text = f.read()
+import re
+m = re.search(r\"'current'\s*=>\s*'([^']+)'\", text)
+ver = m.group(1) if m else '1.1.0'
+print(f'Yerel Versiyon: v{ver}')
+try:
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    with urllib.request.urlopen('https://youtube.aiajan.com.tr/api/version', timeout=5, context=ctx) as r:
+        data = json.loads(r.read().decode())
+        print(f\"Canlı Versiyon: v{data.get('version', 'Bilinmiyor')}\")
+except Exception as e:
+    print('Canlı versiyon sorgulanamadı:', e)
+"
+    exit 0
+fi
+
 # Standart Dağıtım Akışı
 echo "================================================================="
 echo "🚀 YOUTUBE KEŞİF DAĞITIM PROTOKOLÜ BAŞLATILIYOR"

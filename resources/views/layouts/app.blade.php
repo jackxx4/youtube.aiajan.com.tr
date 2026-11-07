@@ -74,7 +74,7 @@
                 <a href="{{ route('admin.dashboard') }}" class="{{ $cur==='admin' ? 'active' : '' }}"><span class="nav-icon">🔧</span><span>Yönetim</span></a>
             @endif
         </nav>
-        <div class="sidefoot">Daha iyi keşif, gerçek topluluk.<br>© {{ date('Y') }} <a href="https://aiajan.com.tr" target="_blank" style="color:#d6bca8;text-decoration:underline;">AIAjan</a></div>
+        <div class="sidefoot">Daha iyi keşif, gerçek topluluk.<br>© {{ date('Y') }} <a href="https://aiajan.com.tr" target="_blank" style="color:#d6bca8;text-decoration:underline;">AIAjan</a> <span style="font-size:11px;opacity:0.75;padding:1px 6px;border-radius:4px;background:#ffffff18;margin-left:4px;">v{{ config('version.current', '1.1.0') }}</span></div>
     </aside>
     <main class="main">
         <header class="top">
@@ -99,5 +99,60 @@
         </section>
     </main>
 </div>
+
+<!-- Canlı Versiyon Takip & Bildirim Motoru -->
+<script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const CURRENT_VERSION = "{{ config('version.current', '1.1.0') }}";
+
+    try {
+        const firebaseConfig = {
+            apiKey: "{{ config('services.firebase.api_key', 'AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA') }}",
+            authDomain: "{{ config('services.firebase.project_id', 'aiajan-portfolio') }}.firebaseapp.com",
+            projectId: "{{ config('services.firebase.project_id', 'aiajan-portfolio') }}"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const verRef = doc(db, 'meta', 'youtube_version');
+        let firstRun = true;
+
+        onSnapshot(verRef, (snap) => {
+            if (!snap.exists()) return;
+            const remoteVer = snap.data()?.current;
+            if (firstRun) { firstRun = false; return; }
+            if (remoteVer && remoteVer !== CURRENT_VERSION) {
+                showUpdateToast(remoteVer);
+            }
+        });
+    } catch (e) {
+        setInterval(async () => {
+            try {
+                const res = await fetch("{{ route('api.version') }}");
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.version && data.version !== CURRENT_VERSION) {
+                        showUpdateToast(data.version);
+                    }
+                }
+            } catch (_) {}
+        }, 60000);
+    }
+
+    function showUpdateToast(newVer) {
+        let t = document.getElementById('update-toast');
+        if (t) t.remove();
+        t = document.createElement('div');
+        t.id = 'update-toast';
+        t.innerHTML = `
+            <span>🚀 Yeni sürüm <strong>v${newVer}</strong> yayında!</span>
+            <button onclick="location.reload()" style="margin-left:14px;padding:6px 12px;border:none;border-radius:6px;background:var(--wine);color:#fff;font-weight:600;cursor:pointer;">Yenile</button>
+            <button onclick="this.parentElement.remove()" style="margin-left:6px;padding:4px 8px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;">✕</button>
+        `;
+        t.style.cssText = `position:fixed;bottom:24px;right:24px;background:var(--cream);border:1px solid var(--line);color:var(--ink);padding:14px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.15);display:flex;align-items:center;font-size:14px;z-index:99999;`;
+        document.body.appendChild(t);
+    }
+</script>
 </body>
 </html>

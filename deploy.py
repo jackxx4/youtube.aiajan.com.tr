@@ -42,6 +42,43 @@ _env = {}
 _env.update(load_env_file(BASE_DIR / ".env"))
 _env.update(load_env_file(BASE_DIR / ".env.deploy"))
 
+FIRESTORE_PROJECT = _env.get("FIREBASE_PROJECT_ID", "aiajan-portfolio")
+
+
+def get_current_version() -> str:
+    ver_path = BASE_DIR / "config" / "version.php"
+    if ver_path.exists():
+        content = ver_path.read_text(encoding="utf-8")
+        m = re.search(r"'current'\s*=>\s*'([^']+)'", content)
+        if m:
+            return m.group(1)
+    return "1.1.0"
+
+
+def update_firestore_version(version: str):
+    api_key = _env.get("FIREBASE_API_KEY", "AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA")
+    if not api_key:
+        return
+    url = (
+        f"https://firestore.googleapis.com/v1/projects/{FIRESTORE_PROJECT}"
+        f"/databases/(default)/documents/meta/youtube_version?key={api_key}"
+    )
+    payload = json.dumps({
+        "fields": {
+            "current": {"stringValue": version},
+            "updatedAt": {"stringValue": str(int(time.time()))}
+        }
+    }).encode("utf-8")
+    try:
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="PATCH")
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        with urllib.request.urlopen(req, timeout=10, context=ctx):
+            print(f"📡 Canlı versiyon Firestore üzerinde senkronize edildi (v{version}).")
+    except Exception as e:
+        print(f"⚠️ Firestore versiyon güncelleme uyarısı: {e}")
+
 FTP_HOST = _env.get("FTP_HOST", "31.186.11.163")
 FTP_PORT = int(_env.get("FTP_PORT", "21"))
 FTP_USER = _env.get("FTP_USER", "aia321comtr")
@@ -453,12 +490,16 @@ def main():
     elapsed = time.time() - start_time
 
     if status_code == 200 and has_brand:
+        current_version = get_current_version()
         print("=" * 70)
-        print(f"✅ CANLI SUNUCU BAŞARIYLA YAYINDA: {LIVE_URL} (HTTP {status_code})")
+        print(f"✅ CANLI SUNUCU BAŞARIYLA YAYINDA: {LIVE_URL} (HTTP {status_code}) [v{current_version}]")
         print(f"⏱️ Süre: {elapsed:.2f}s | Aktarılan: {to_upload_count} dosya | Temizlenen View: {removed_views}")
         print("=" * 70)
 
-        # 6. Dağıtım Sonrası Otomatik Canlı Hata Loglarını Çek ve Kontrol Et
+        # 6. Versiyon Senkronizasyonu (Firestore & Ekosistem)
+        update_firestore_version(current_version)
+
+        # 7. Dağıtım Sonrası Otomatik Canlı Hata Loglarını Çek ve Kontrol Et
         print("\n🔍 Dağıtım Sonrası Canlı Hata Logları Yerele Çekiliyor ve Kontrol Ediliyor...")
         pull_remote_log(verbose=True)
         read_error_log(limit=3)

@@ -9,6 +9,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/api/version', fn() => response()->json([
+    'version' => config('version.current', '1.1.0'),
+    'release' => config('version.release_name', 'YouTube Keşif'),
+    'updated_at' => config('version.updated_at')
+]))->name('api.version');
+
 Route::get('/',fn()=>view('welcome'))->name('home');
 Route::get('/giris',fn()=>view('auth.login'))->name('login');
 Route::get('/auth/google',[GoogleAuthController::class,'redirect'])->name('auth.google');

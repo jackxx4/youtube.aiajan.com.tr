@@ -12,7 +12,7 @@
   "app/Models/YouTubeChannel.php": "564_1794021548",
   "app/Models/YouTubeMetricMonthly.php": "388_1794021548",
   "app/Models/YouTubeOAuthToken.php": "420_1794021548",
-  "app/Http/Middleware/EnsureAdmin.php": "348_1794021548",
+  "app/Http/Middleware/EnsureAdmin.php": "353_1794028077",
   "app/Http/Controllers/ChannelController.php": "4238_1794027941",
   "app/Http/Controllers/Controller.php": "67_1794021548",
   "app/Http/Controllers/DashboardController.php": "792_1794021548",
@@ -57,9 +57,10 @@
   "resources/views/discovery/videos.blade.php": "2679_1794021548",
   "resources/views/admin/dashboard.blade.php": "1242_1794021548",
   "resources/views/profile/show.blade.php": "624_1794021548",
-  "resources/views/layouts/app.blade.php": "7091_1794027265",
+  "resources/views/layouts/app.blade.php": "9959_1794028184",
   "resources/views/channels/select.blade.php": "1201_1794021548",
   "routes/console.php": "210_1794021548",
-  "routes/web.php": "2947_1794027216",
-  "crates/youtube-sync/src/main.rs": "9580_1794024249"
+  "routes/web.php": "3197_1794028116",
+  "crates/youtube-sync/src/main.rs": "9580_1794024249",
+  "config/version.php": "143_1794028103"
 }
