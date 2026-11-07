@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'current' => '1.4.9',
-    'release_name' => 'Otomatik Sayaçlı Zorunlu Sayfa Yenileme',
-    'updated_at' => '2026-11-07T18:30:00',
+    'current' => '1.5.0',
+    'release_name' => 'Özel Güvenli Hata Sayfaları (400-503) ve Yönetim Merkezi (Admin Dashboard)',
+    'updated_at' => '2026-11-07T15:00:00',
 ];
 
 

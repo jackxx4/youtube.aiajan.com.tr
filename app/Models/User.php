@@ -19,6 +19,8 @@ class User extends Authenticatable
         'username',
         'avatar_url',
         'google_channel_ids',
+        'role',
+        'status',
         'password',
     ];
 
