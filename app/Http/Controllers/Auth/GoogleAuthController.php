@@ -17,52 +17,101 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
 use Throwable;
 
 class GoogleAuthController extends Controller
 {
+    /**
+     * Resmi Google OAuth 2.0 Yönlendirmesi (Saf PHP / Harici Kütüphane Bağımsız)
+     */
     public function redirect(YouTubeChannelService $channels): RedirectResponse
     {
-        try {
-            $channels->assertConfigured();
-            return Socialite::driver('google')
-                ->scopes(['openid', 'email', 'profile', 'https://www.googleapis.com/auth/youtube.readonly'])
-                ->with(['access_type' => 'offline', 'prompt' => 'consent select_account'])
-                ->redirect();
-        } catch (\Throwable $e) {
-            report($e);
-            return redirect()->route('login', ['auto' => 'google']);
+        $clientId = config('services.google.client_id');
+        $redirectUri = config('services.google.redirect');
+
+        if (empty($clientId) || $clientId === 'BURAYA_YAZILACAK') {
+            return redirect()->route('login')->withErrors(['google' => 'Google OAuth istemci bilgileri yapılandırılmadı.']);
         }
+
+        $state = Str::random(40);
+        session(['google_oauth_state' => $state]);
+
+        $query = http_build_query([
+            'client_id'     => $clientId,
+            'redirect_uri'  => $redirectUri,
+            'response_type' => 'code',
+            'scope'         => 'openid email profile https://www.googleapis.com/auth/youtube.readonly',
+            'access_type'   => 'offline',
+            'prompt'        => 'consent select_account',
+            'state'         => $state,
+        ]);
+
+        return redirect('https://accounts.google.com/o/oauth2/v2/auth?' . $query);
     }
 
-    public function callback(YouTubeChannelService $channels): RedirectResponse
+    /**
+     * Resmi Google OAuth 2.0 Geri Dönüşü (Authorization Code -> Access Token & User Info)
+     */
+    public function callback(Request $request, YouTubeChannelService $channels): RedirectResponse
     {
-        try {
-            $google = Socialite::driver('google')->user();
-            $available = $channels->listMine($google->token);
+        $code = (string) $request->input('code');
+        if (empty($code)) {
+            return redirect()->route('login')->withErrors(['google' => 'Google oturum açma işlemi iptal edildi veya yetki kodu alınamadı.']);
+        }
 
-            $user = DB::transaction(function () use ($google) {
-                $user = User::firstOrNew(['google_sub' => $google->getId()]);
+        $clientId = config('services.google.client_id');
+        $clientSecret = config('services.google.client_secret');
+        $redirectUri = config('services.google.redirect');
+
+        // 1. Token değişimi (code -> access_token & refresh_token)
+        $tokenData = $this->exchangeGoogleCode($code, $clientId, $clientSecret, $redirectUri);
+        if (!$tokenData || empty($tokenData['access_token'])) {
+            return redirect()->route('login')->withErrors(['google' => 'Google erişim belirteci doğrulanamadı. Lütfen tekrar deneyin.']);
+        }
+
+        $accessToken = $tokenData['access_token'];
+        $refreshToken = $tokenData['refresh_token'] ?? null;
+        $expiresIn = $tokenData['expires_in'] ?? 3600;
+
+        // 2. Kullanıcı bilgilerini Google Userinfo API'den çek
+        $googleUser = $this->getGoogleUserInfo($accessToken);
+        if (!$googleUser || empty($googleUser['sub'])) {
+            return redirect()->route('login')->withErrors(['google' => 'Google kullanıcı profili alınamadı.']);
+        }
+
+        $googleSub = $googleUser['sub'];
+        $email = strtolower((string) ($googleUser['email'] ?? ''));
+        $name = (string) ($googleUser['name'] ?: ($email ? explode('@', $email)[0] : 'YouTube Üreticisi'));
+        $avatar = $googleUser['picture'] ?? null;
+
+        // 3. Kullanıcının yetkili tüm YouTube kanallarını doğrudan çek
+        $available = $channels->listMine($accessToken);
+
+        // 4. Veritabanı işlemleri ve oturum açma
+        try {
+            $user = DB::transaction(function () use ($googleSub, $name, $email, $avatar, $accessToken, $refreshToken, $expiresIn) {
+                $user = User::firstOrNew(['google_sub' => $googleSub]);
                 if ($user->exists && $user->status !== 'active') {
                     return $user;
                 }
                 if (!$user->exists) {
-                    $user->username = $this->uniqueUsername($google->getNickname() ?: $google->getName() ?: 'creator');
+                    $user->username = $this->uniqueUsername($name);
                     $user->status = 'active';
                 }
-                $user->name = $google->getName() ?: 'YouTube Kullanıcısı';
-                $user->email = $google->getEmail();
-                $user->avatar_url = $google->getAvatar();
+                $user->name = $name;
+                $user->email = $email;
+                if ($avatar) {
+                    $user->avatar_url = $avatar;
+                }
                 $user->save();
 
                 $storedToken = YouTubeOAuthToken::firstOrNew(['user_id' => $user->id]);
-                $storedToken->access_token_enc = Crypt::encryptString($google->token);
-                if ($google->refreshToken) {
-                    $storedToken->refresh_token_enc = Crypt::encryptString($google->refreshToken);
+                $storedToken->access_token_enc = Crypt::encryptString($accessToken);
+                if ($refreshToken) {
+                    $storedToken->refresh_token_enc = Crypt::encryptString($refreshToken);
                 }
-                $storedToken->expires_at = $google->expiresIn ? now()->addSeconds($google->expiresIn) : null;
+                $storedToken->expires_at = now()->addSeconds($expiresIn);
                 $storedToken->scopes = 'openid email profile https://www.googleapis.com/auth/youtube.readonly';
                 $storedToken->save();
 
@@ -74,14 +123,72 @@ class GoogleAuthController extends Controller
             }
 
             Auth::login($user, true);
-            request()->session()->regenerate();
+            $request->session()->regenerate();
 
             $redirectUrl = $this->processChannelsAndRedirect($user, $available, $channels);
             return redirect($redirectUrl);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             report($e);
-            return redirect()->route('login')->withErrors(['google' => 'Google girişi tamamlanamadı. OAuth ayarlarını ve YouTube kanal erişimini kontrol edin.']);
+            return redirect()->route('login')->withErrors(['google' => 'Giriş işlemi tamamlanırken hata oluştu: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Google OAuth Code -> Token takası
+     */
+    private function exchangeGoogleCode(string $code, string $clientId, string $clientSecret, string $redirectUri): ?array
+    {
+        $ch = curl_init('https://oauth2.googleapis.com/token');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query([
+                'code'          => $code,
+                'client_id'     => $clientId,
+                'client_secret' => $clientSecret,
+                'redirect_uri'  => $redirectUri,
+                'grant_type'    => 'authorization_code',
+            ]),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+            CURLOPT_TIMEOUT => 12,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || !$response) {
+            Log::warning('Google OAuth token değişimi başarısız', ['code' => $httpCode, 'resp' => mb_substr((string) $response, 0, 500)]);
+            return null;
+        }
+
+        return json_decode($response, true);
+    }
+
+    /**
+     * Google Access Token ile profil bilgisi çekme
+     */
+    private function getGoogleUserInfo(string $accessToken): ?array
+    {
+        $ch = curl_init('https://www.googleapis.com/oauth2/v3/userinfo');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $accessToken,
+                'Accept: application/json',
+            ],
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || !$response) {
+            return null;
+        }
+
+        return json_decode($response, true);
     }
 
     /**
@@ -262,7 +369,7 @@ class GoogleAuthController extends Controller
         return route('dashboard');
     }
 
-    private function verifyFirebaseToken(string $idToken): ?array
+    protected function verifyFirebaseToken(string $idToken): ?array
     {
         $apiKey = config('services.firebase.api_key') ?: env('FIREBASE_API_KEY');
         if (empty($apiKey) || empty($idToken)) {

@@ -9,7 +9,6 @@ use App\Models\Video;
 use App\Models\YouTubeChannel;
 use App\Services\YouTubeChannelService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Socialite\Facades\Socialite;
 use Mockery;
 use Tests\TestCase;
 
@@ -17,7 +16,21 @@ class GoogleAuthTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_google_login_with_multiple_channels_imports_all_channels_and_redirects_to_selection(): void
+    public function test_google_redirect_returns_valid_oauth_url(): void
+    {
+        config(['services.google.client_id' => 'test-client-id.apps.googleusercontent.com']);
+        config(['services.google.redirect' => 'https://youtube.aiajan.com.tr/auth/google/callback']);
+
+        $response = $this->get(route('auth.google'));
+
+        $response->assertStatus(302);
+        $location = $response->headers->get('Location');
+        $this->assertStringContainsString('https://accounts.google.com/o/oauth2/v2/auth', $location);
+        $this->assertStringContainsString('client_id=test-client-id.apps.googleusercontent.com', $location);
+        $this->assertStringContainsString('youtube.readonly', $location);
+    }
+
+    public function test_firebase_login_with_multiple_channels_imports_all_channels_and_redirects_to_selection(): void
     {
         $mockChannelsService = Mockery::mock(YouTubeChannelService::class);
         $mockChannelsService->shouldReceive('assertConfigured')->andReturnNull();
@@ -44,24 +57,29 @@ class GoogleAuthTest extends TestCase
         $mockChannelsService->shouldReceive('syncChannelVideos')->andReturn(10);
         $this->app->instance(YouTubeChannelService::class, $mockChannelsService);
 
-        $socialiteUser = Mockery::mock('Laravel\Socialite\Two\User');
-        $socialiteUser->shouldReceive('getId')->andReturn('google_sub_multi_123');
-        $socialiteUser->shouldReceive('getName')->andReturn('Emrah İçerik Üretici');
-        $socialiteUser->shouldReceive('getEmail')->andReturn('creator@example.com');
-        $socialiteUser->shouldReceive('getAvatar')->andReturn('https://lh3.googleusercontent.com/avatar.jpg');
-        $socialiteUser->shouldReceive('getNickname')->andReturn('creator_nick');
-        $socialiteUser->token = 'mock_google_oauth_token';
-        $socialiteUser->refreshToken = 'mock_refresh_token';
-        $socialiteUser->expiresIn = 3600;
+        // Firebase verify token mock'u için controller'ın protected metodunu mocklayalım veya test edelim
+        $controller = $this->getMockBuilder(\App\Http\Controllers\Auth\GoogleAuthController::class)
+            ->onlyMethods(['verifyFirebaseToken'])
+            ->getMock();
 
-        $provider = Mockery::mock('Laravel\Socialite\Two\GoogleProvider');
-        $provider->shouldReceive('user')->andReturn($socialiteUser);
-        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+        $controller->method('verifyFirebaseToken')->willReturn([
+            'uid'   => 'google_sub_multi_123',
+            'email' => 'creator@example.com',
+            'name'  => 'Emrah İçerik Üretici',
+            'photo' => 'https://lh3.googleusercontent.com/avatar.jpg',
+        ]);
+        $this->app->instance(\App\Http\Controllers\Auth\GoogleAuthController::class, $controller);
 
-        $response = $this->get(route('auth.google.callback'));
+        $response = $this->postJson(route('auth.firebase.callback'), [
+            'idToken'     => 'mock_id_token',
+            'accessToken' => 'mock_access_token',
+        ]);
 
-        // Çoklu kanal olduğu için doğrudan kanal seçimi sayfasına yönlendirilir
-        $response->assertRedirect(route('channels.select'));
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success'  => true,
+            'redirect' => route('channels.select'),
+        ]);
 
         $this->assertAuthenticated();
         $user = auth()->user();
@@ -85,7 +103,7 @@ class GoogleAuthTest extends TestCase
         $this->assertCount(3, $allLinks);
     }
 
-    public function test_google_login_with_single_channel_redirects_to_showcase_when_vitrin_empty(): void
+    public function test_firebase_login_with_single_channel_redirects_to_showcase_when_vitrin_empty(): void
     {
         $mockChannelsService = Mockery::mock(YouTubeChannelService::class);
         $mockChannelsService->shouldReceive('assertConfigured')->andReturnNull();
@@ -100,28 +118,32 @@ class GoogleAuthTest extends TestCase
         $mockChannelsService->shouldReceive('syncChannelVideos')->andReturn(10);
         $this->app->instance(YouTubeChannelService::class, $mockChannelsService);
 
-        $socialiteUser = Mockery::mock('Laravel\Socialite\Two\User');
-        $socialiteUser->shouldReceive('getId')->andReturn('google_sub_single_999');
-        $socialiteUser->shouldReceive('getName')->andReturn('Tekil Kanal Sahibi');
-        $socialiteUser->shouldReceive('getEmail')->andReturn('single@example.com');
-        $socialiteUser->shouldReceive('getAvatar')->andReturn(null);
-        $socialiteUser->shouldReceive('getNickname')->andReturn('singleuser');
-        $socialiteUser->token = 'mock_single_token';
-        $socialiteUser->refreshToken = null;
-        $socialiteUser->expiresIn = 3600;
+        $controller = $this->getMockBuilder(\App\Http\Controllers\Auth\GoogleAuthController::class)
+            ->onlyMethods(['verifyFirebaseToken'])
+            ->getMock();
 
-        $provider = Mockery::mock('Laravel\Socialite\Two\GoogleProvider');
-        $provider->shouldReceive('user')->andReturn($socialiteUser);
-        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+        $controller->method('verifyFirebaseToken')->willReturn([
+            'uid'   => 'google_sub_single_999',
+            'email' => 'single@example.com',
+            'name'  => 'Tekil Kanal Sahibi',
+            'photo' => null,
+        ]);
+        $this->app->instance(\App\Http\Controllers\Auth\GoogleAuthController::class, $controller);
 
-        $response = $this->get(route('auth.google.callback'));
+        $response = $this->postJson(route('auth.firebase.callback'), [
+            'idToken'     => 'mock_id_token',
+            'accessToken' => 'mock_access_token',
+        ]);
 
-        // Tek kanal olduğu ve henüz vitrin seçilmediği için doğrudan vitrin seçimine yönlendirilir
-        $response->assertRedirect(route('videos.showcase'));
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success'  => true,
+            'redirect' => route('videos.showcase'),
+        ]);
 
         $user = auth()->user();
-        $this->assertNotNull($user->activeChannelLink);
-        $this->assertEquals('UC_SINGLE_CH', $user->activeChannelLink->channel->youtube_channel_id);
+        $this->assertNotNull($user->fresh()->activeChannelLink);
+        $this->assertEquals('UC_SINGLE_CH', $user->fresh()->activeChannelLink->channel->youtube_channel_id);
     }
 
     public function test_user_can_switch_to_other_imported_channel_and_select_showcase(): void
