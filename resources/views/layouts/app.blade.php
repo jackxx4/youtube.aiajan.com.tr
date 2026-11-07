@@ -64,14 +64,10 @@
     <aside class="side">
         <a class="brand" href="{{ route('home') }}">YouTube Keşif<small>creator community</small></a>
         <nav class="nav">
-            @php
-                $cur = request()->routeIs('dashboard') ? 'dashboard' : (request()->routeIs('discovery.videos*') ? 'videos' : (request()->routeIs('profile*') ? 'profile' : (request()->routeIs('admin*') ? 'admin' : '')));
-                $isSupporter = request()->routeIs('discovery.users*') && request()->route('pool') === 'supporter';
-                $isNormalDiscovery = request()->routeIs('discovery.users*') && request()->route('pool') !== 'supporter';
-            @endphp
+            @php $cur = request()->routeIs(...['dashboard']) ? 'dashboard' : (request()->routeIs('discovery.users*') ? 'discovery' : (request()->routeIs('discovery.videos*') ? 'videos' : (request()->routeIs('profile*') ? 'profile' : (request()->routeIs('admin*') ? 'admin' : '')))); @endphp
             <a href="{{ route('dashboard') }}" class="{{ $cur==='dashboard' ? 'active' : '' }}"><span class="nav-icon">🏠</span><span>Genel Bakış</span></a>
-            <a href="{{ route('discovery.users', 'normal') }}" class="{{ $isNormalDiscovery ? 'active' : '' }}"><span class="nav-icon">👥</span><span>Kullanıcı Keşfi</span></a>
-            <a href="{{ route('discovery.users', 'supporter') }}" class="{{ $isSupporter ? 'active' : '' }}"><span class="nav-icon">⭐</span><span>Destekçiler</span></a>
+            <a href="{{ route('discovery.users', 'normal') }}" class="{{ $cur==='discovery' ? 'active' : '' }}"><span class="nav-icon">👥</span><span>Kullanıcı Keşfi</span></a>
+            <a href="{{ route('discovery.users', 'supporter') }}"><span class="nav-icon">⭐</span><span>Destekçiler</span></a>
             <a href="{{ route('discovery.videos') }}" class="{{ $cur==='videos' ? 'active' : '' }}"><span class="nav-icon">🎬</span><span>Video Keşfi</span></a>
             <a href="{{ route('profile.me') }}" class="{{ $cur==='profile' ? 'active' : '' }}"><span class="nav-icon">👤</span><span>Profilim</span></a>
             @if(auth()->check() && auth()->user()->role === 'admin')

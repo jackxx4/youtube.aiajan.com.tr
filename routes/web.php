@@ -7,7 +7,7 @@ use App\Http\Controllers\DiscoveryController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 Route::get('/',fn()=>view('welcome'))->name('home');
-Route::get('/giris',fn()=>auth()->check() ? redirect()->route('dashboard') : view('auth.login'))->name('login');
+Route::get('/giris',fn()=>view('auth.login'))->name('login');
 Route::get('/auth/google',[GoogleAuthController::class,'redirect'])->name('auth.google');
 Route::get('/auth/google/callback',[GoogleAuthController::class,'callback'])->name('auth.google.callback');
 Route::middleware('auth')->group(function(){
