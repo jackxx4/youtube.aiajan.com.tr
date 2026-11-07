@@ -15,7 +15,7 @@ class DashboardController extends Controller
         $user = $request->user();
         $activeLink = $user->activeChannelLink()->with('channel')->first();
         $channel = $activeLink?->channel;
-        $canChangeChannel = true;
+        $canChangeChannel = $activeLink && $activeLink->started_at && $activeLink->started_at->lte(now()->subDays(30));
         $followsToday = PlatformFollow::where('follower_user_id', $user->id)
             ->whereDate('created_at', today())
             ->count();
