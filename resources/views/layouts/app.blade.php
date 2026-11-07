@@ -225,7 +225,7 @@
             @endif
             Daha iyi keşif, gerçek topluluk.<br>
             © {{ date('Y') }} <a href="https://aiajan.com.tr" target="_blank" style="color:#d6bca8;text-decoration:underline;">aiajan</a>
-            <span style="font-size:11px;opacity:0.85;padding:1px 6px;border-radius:4px;background:#ffffff18;margin-left:4px;">v{{ config('version.current', '1.4.0') }}</span>
+            <span style="font-size:11px;opacity:0.85;padding:1px 6px;border-radius:4px;background:#ffffff18;margin-left:4px;">v{{ config('version.current', '1.4.1') }}</span>
             <div style="margin-top:10px;font-size:11px;display:flex;gap:6px;flex-wrap:wrap;color:#bcaaa4;line-height:1.4;">
                 <a href="{{ route('privacy') }}" style="color:inherit;text-decoration:underline;">Gizlilik</a> ·
                 <a href="{{ route('cookies') }}" style="color:inherit;text-decoration:underline;">Çerez</a> ·
@@ -235,7 +235,7 @@
         </div>
     </aside>
 
-    <main class="main" style="display:flex;flex-direction:column;min-height:100vh;">
+    <main class="main">
         <header class="top">
             <div class="top-brand-group">
                 <button type="button" class="mobile-toggle" id="mobileMenuOpen" aria-label="Menüyü Aç" aria-expanded="false">
@@ -256,7 +256,7 @@
             </div>
         </header>
 
-        <section class="content" style="flex:1;">
+        <section class="content">
             @if(session('status'))
                 <div class="alert success">{{ session('status') }}</div>
             @endif
@@ -265,26 +265,6 @@
             @endif
             @yield('content')
         </section>
-
-        <!-- Platform Zengin Footer (Masaüstü ve Mobil Uyumlu) -->
-        <footer style="margin-top:auto;padding:32px 30px 24px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
-                <div>
-                    <strong style="color:var(--wine);font-size:15px;font-family:'DM Serif Display',serif;">YouTube Keşif</strong>
-                    <span style="margin-left:6px;">· Bağımsız İçerik Üretici Ekosistemi</span>
-                </div>
-                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
-                    <a href="{{ route('privacy') }}" style="color:inherit;text-decoration:underline;">Gizlilik</a>
-                    <a href="{{ route('cookies') }}" style="color:inherit;text-decoration:underline;">Çerez Politikası</a>
-                    <a href="{{ route('kvkk') }}" style="color:inherit;text-decoration:underline;">KVKK</a>
-                    <a href="{{ route('contact') }}" style="color:inherit;text-decoration:underline;">İletişim & Destek</a>
-                    <a href="https://aiajan.com.tr" target="_blank" style="color:var(--rust);text-decoration:underline;font-weight:600;">aiajan.com.tr ↗</a>
-                </div>
-            </div>
-            <div style="margin-top:10px;font-size:11.5px;opacity:0.8;">
-                © {{ date('Y') }} YouTube Keşif. Platform takipleri YouTube aboneliği değildir. Tüm hakları saklıdır.
-            </div>
-        </footer>
     </main>
 </div>
 
@@ -366,7 +346,7 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getFirestore, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-    const CURRENT_VERSION = "{{ config('version.current', '1.4.0') }}";
+    const CURRENT_VERSION = "{{ config('version.current', '1.4.1') }}";
 
     try {
         const firebaseConfig = {

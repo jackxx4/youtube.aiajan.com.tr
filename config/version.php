@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'current' => '1.4.0',
-    'release_name' => 'Deploy Güvenlik Sertleştirmesi, Profil Kanal Geçmişi & Mantık Düzeltmeleri',
-    'updated_at' => '2026-11-07T12:00:00',
+    'current' => '1.4.1',
+    'release_name' => 'Mükerrer Footer Temizliği & Yasal Bağlantı Optimizasyonu',
+    'updated_at' => '2026-11-07T12:15:00',
 ];
 
 
