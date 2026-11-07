@@ -1,85 +1,45 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# YouTube Keşif — Canlı Dağıtım Protokolü (deploy.sh)
+# Kural: Önce deploy.sh ile canlı sunucuya gönderilecek,
+#       sonrasında GitHub origin/main'e push edilecek.
+# ==============================================================================
 
 set -Eeuo pipefail
 
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-PHP_BIN="${PHP_BIN:-php}"
-COMPOSER_BIN="${COMPOSER_BIN:-composer}"
-DEPLOY_PULL="${DEPLOY_PULL:-0}"
-MAINTENANCE_ENABLED=0
-
 cd "$PROJECT_DIR"
 
-fail() {
-    printf 'Dağıtım durduruldu: %s\n' "$*" >&2
-    exit 1
-}
+echo "================================================================="
+echo "🚀 YOUTUBE KEŞİF DAĞITIM PROTOKOLÜ BAŞLATILIYOR"
+echo "Hedef: https://youtube.aiajan.com.tr (31.186.11.163)"
+echo "================================================================="
 
-on_error() {
-    local exit_code=$?
+# 1. Aşama: Canlı Sunucuya Dağıtım (FTP Delta + Migration + Health Check)
+echo "▶ 1. Adım: Canlı sunucuya dağıtılıyor (deploy.py)..."
+python3 deploy.py "$@"
 
-    if [ "$MAINTENANCE_ENABLED" -eq 1 ]; then
-        printf 'Dağıtım başarısız oldu; uygulama bakım modunda bırakıldı.\n' >&2
+echo ""
+echo "▶ 2. Adım: Canlı sunucu yayını doğrulandı. GitHub senkronizasyonu başlatılıyor..."
+
+# 2. Aşama: Canlı sunucu başarıyla doğrulandıktan sonra GitHub'a push et
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # Varsa commit edilmemiş değişiklikleri kontrol et
+    if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+        echo "  [i] Değişiklikler commit ediliyor..."
+        git add -A
+        git commit -m "deploy: canlı sunucuya başarıyla dağıtıldı ve doğrulandı"
     fi
 
-    exit "$exit_code"
-}
-
-trap on_error ERR
-
-command -v "$PHP_BIN" >/dev/null 2>&1 || fail "PHP bulunamadı. PHP_BIN ile yolu belirtin."
-command -v "$COMPOSER_BIN" >/dev/null 2>&1 || fail "Composer bulunamadı. COMPOSER_BIN ile yolu belirtin."
-[ -f artisan ] || fail "Bu komut Laravel proje kökünde çalıştırılmalıdır."
-[ -f .env ] || fail ".env bulunamadı. Önce .env.example dosyasından oluşturun."
-
-for required_key in DB_DATABASE DB_USERNAME DB_PASSWORD; do
-    required_value="$(sed -n "s/^${required_key}=//p" .env | head -n 1)"
-    if [ -z "$required_value" ] || [ "$required_value" = "BURAYA_YAZILACAK" ]; then
-        fail ".env içindeki ${required_key} değeri ayarlanmamış."
-    fi
-done
-
-if ! "$PHP_BIN" -r 'exit version_compare(PHP_VERSION, "8.3.0", ">=") ? 0 : 1;'; then
-    fail "PHP 8.3 veya daha yeni bir sürüm gerekir."
-fi
-
-if [ "$DEPLOY_PULL" = "1" ]; then
-    git fetch origin main
-    git pull --ff-only origin main
-fi
-
-[ -w storage ] || fail "storage dizini PHP kullanıcısı tarafından yazılabilir değil."
-[ -w bootstrap/cache ] || fail "bootstrap/cache dizini PHP kullanıcısı tarafından yazılabilir değil."
-
-if [ -f composer.lock ]; then
-    "$COMPOSER_BIN" install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+    echo "  [↑] GitHub origin main'e gönderiliyor..."
+    git push origin main
+    echo "  ✓ GitHub push tamamlandı."
 else
-    "$COMPOSER_BIN" update --no-dev --no-interaction --prefer-dist --optimize-autoloader
+    echo "  ⚠️ Git deposu bulunamadı, push atlandı."
 fi
 
-if command -v cargo >/dev/null 2>&1 && [ -d crates/youtube-sync ]; then
-    printf 'Rust YouTube Sync Motoru derleniyor...\n'
-    (cd crates/youtube-sync && cargo build --release)
-    mkdir -p bin
-    if [ -f crates/youtube-sync/target/release/youtube-sync ]; then
-        cp crates/youtube-sync/target/release/youtube-sync bin/
-        chmod +x bin/youtube-sync
-    elif [ -f crates/youtube-sync/target/release/youtube-sync.exe ]; then
-        cp crates/youtube-sync/target/release/youtube-sync.exe bin/
-    fi
-fi
-if ! grep -Eq '^APP_KEY=base64:.+' .env; then
-    "$PHP_BIN" artisan key:generate --force
-fi
-"$PHP_BIN" artisan down --retry=60
-MAINTENANCE_ENABLED=1
-
-"$PHP_BIN" artisan migrate --force
-"$PHP_BIN" artisan optimize:clear
-"$PHP_BIN" artisan config:cache
-"$PHP_BIN" artisan route:cache
-"$PHP_BIN" artisan view:cache
-"$PHP_BIN" artisan up
-MAINTENANCE_ENABLED=0
-
-printf 'Dağıtım başarıyla tamamlandı.\n'
+echo ""
+echo "================================================================="
+echo "🎉 DAĞITIM VE GİTHUB PUSH BAŞARIYLA TAMAMLANDI!"
+echo "Canlı Adres: https://youtube.aiajan.com.tr"
+echo "================================================================="

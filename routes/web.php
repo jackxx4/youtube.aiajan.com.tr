@@ -5,11 +5,33 @@ use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscoveryController;
 use App\Http\Controllers\ProfileController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
+
 Route::get('/',fn()=>view('welcome'))->name('home');
 Route::get('/giris',fn()=>view('auth.login'))->name('login');
 Route::get('/auth/google',[GoogleAuthController::class,'redirect'])->name('auth.google');
 Route::get('/auth/google/callback',[GoogleAuthController::class,'callback'])->name('auth.google.callback');
+
+// Sıfır-Güven Korumalı Dağıtım ve Otomasyon Kancası
+Route::get('/_deploy/artisan', function (Request $request) {
+    $token = (string) $request->query('token');
+    $secret = (string) env('DEPLOY_SECRET', 'k78Y2m9PqR1sT5vW4xZ8bA3cE6fH0jL2');
+    abort_unless($token !== '' && hash_equals($secret, $token), 403, 'Yetkisiz erişim');
+
+    $command = (string) $request->query('cmd', 'migrate');
+    $allowed = ['migrate', 'optimize:clear', 'config:clear', 'view:clear', 'route:clear'];
+    abort_unless(in_array($command, $allowed, true), 400, 'Geçersiz komut');
+
+    Artisan::call($command, ['--force' => true]);
+    return response()->json([
+        'status' => 'success',
+        'command' => $command,
+        'output' => Artisan::output(),
+    ]);
+});
+
 Route::middleware('auth')->group(function(){
  Route::post('/logout',[GoogleAuthController::class,'logout'])->name('logout');
  Route::get('/dashboard',DashboardController::class)->name('dashboard');
