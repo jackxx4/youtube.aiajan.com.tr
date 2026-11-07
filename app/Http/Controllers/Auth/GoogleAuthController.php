@@ -41,6 +41,9 @@ class GoogleAuthController extends Controller
 
             $user = DB::transaction(function () use ($google, $available) {
                 $user = User::firstOrNew(['google_sub' => $google->getId()]);
+                if ($user->exists && $user->status !== 'active') {
+                    return $user;
+                }
                 if (!$user->exists) {
                     $user->username = $this->uniqueUsername($google->getNickname() ?: $google->getName() ?: 'creator');
                     $user->status = 'active';
@@ -68,10 +71,6 @@ class GoogleAuthController extends Controller
                 $storedToken->scopes = 'openid email profile https://www.googleapis.com/auth/youtube.readonly';
                 $storedToken->save();
 
-                if ($available->isNotEmpty()) {
-                    session(['available_youtube_channels' => $available->pluck('youtube_channel_id')->all()]);
-                }
-
                 return $user;
             });
 
@@ -81,6 +80,10 @@ class GoogleAuthController extends Controller
 
             Auth::login($user, true);
             request()->session()->regenerate();
+
+            if ($available->isNotEmpty()) {
+                session(['available_youtube_channels' => $available->pluck('youtube_channel_id')->all()]);
+            }
 
             $active = $user->activeChannelLink()->first();
             return ($active && $active->started_at && $active->started_at->gt(now()->subDays(30)))
@@ -127,6 +130,9 @@ class GoogleAuthController extends Controller
         try {
             $user = DB::transaction(function () use ($googleSub, $name, $email, $avatar, $accessToken, $available) {
                 $user = User::firstOrNew(['google_sub' => $googleSub]);
+                if ($user->exists && $user->status !== 'active') {
+                    return $user;
+                }
                 if (!$user->exists) {
                     $user->username = $this->uniqueUsername($name);
                     $user->status = 'active';
@@ -155,10 +161,6 @@ class GoogleAuthController extends Controller
                     $storedToken->save();
                 }
 
-                if ($available->isNotEmpty()) {
-                    session(['available_youtube_channels' => $available->pluck('youtube_channel_id')->all()]);
-                }
-
                 return $user;
             });
 
@@ -168,6 +170,10 @@ class GoogleAuthController extends Controller
 
             Auth::login($user, true);
             $request->session()->regenerate();
+
+            if ($available->isNotEmpty()) {
+                session(['available_youtube_channels' => $available->pluck('youtube_channel_id')->all()]);
+            }
 
             $active = $user->activeChannelLink()->first();
             $redirectUrl = ($active && $active->started_at && $active->started_at->gt(now()->subDays(30)))
@@ -198,7 +204,7 @@ class GoogleAuthController extends Controller
             CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 8,
-            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYPEER => true,
         ]);
         $body = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -232,11 +238,12 @@ class GoogleAuthController extends Controller
 
     private function uniqueUsername(string $name): string
     {
-        $base = substr(Str::slug($name, '_') ?: 'creator', 0, 38);
+        $base = substr(Str::slug($name, '_') ?: 'creator', 0, 40);
         $candidate = $base;
         $i = 1;
         while (User::where('username', $candidate)->exists()) {
-            $candidate = substr($base, 0, 38) . $i++;
+            $suffix = (string) $i++;
+            $candidate = substr($base, 0, 50 - strlen($suffix)) . $suffix;
         }
         return $candidate;
     }

@@ -1,9 +1,22 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Model;
-class YouTubeMetricMonthly extends Model {
- public $timestamps=false;
- protected $table='youtube_metrics_monthly';
- protected $fillable=['youtube_channel_id','metric_month','subscriber_count','view_count','collected_at'];
- protected function casts(): array {return ['metric_month'=>'date','collected_at'=>'datetime'];}
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class YouTubeMetricMonthly extends Model
+{
+    protected $table = 'youtube_metrics_monthly';
+    protected $fillable = ['youtube_channel_id', 'metric_month', 'views_monthly', 'subscribers_net_monthly', 'calculated_score', 'synced_at'];
+
+    protected function casts(): array
+    {
+        return ['synced_at' => 'datetime'];
+    }
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(YouTubeChannel::class, 'youtube_channel_id');
+    }
 }
