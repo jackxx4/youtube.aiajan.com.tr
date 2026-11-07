@@ -4,16 +4,20 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserChannelLink;
+use App\Models\UserVideoSelection;
 use App\Models\YouTubeChannel;
 use App\Models\YouTubeOAuthToken;
 use App\Services\YouTubeChannelService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Socialite;
+use Illuminate\Support\Facades\Log;
+use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -39,7 +43,7 @@ class GoogleAuthController extends Controller
             $google = Socialite::driver('google')->user();
             $available = $channels->listMine($google->token);
 
-            $user = DB::transaction(function () use ($google, $available) {
+            $user = DB::transaction(function () use ($google) {
                 $user = User::firstOrNew(['google_sub' => $google->getId()]);
                 if ($user->exists && $user->status !== 'active') {
                     return $user;
@@ -52,15 +56,6 @@ class GoogleAuthController extends Controller
                 $user->email = $google->getEmail();
                 $user->avatar_url = $google->getAvatar();
                 $user->save();
-
-                if ($available->isNotEmpty()) {
-                    foreach ($available as $data) {
-                        YouTubeChannel::updateOrCreate(
-                            ['youtube_channel_id' => $data['youtube_channel_id']],
-                            collect($data)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
-                        );
-                    }
-                }
 
                 $storedToken = YouTubeOAuthToken::firstOrNew(['user_id' => $user->id]);
                 $storedToken->access_token_enc = Crypt::encryptString($google->token);
@@ -81,13 +76,8 @@ class GoogleAuthController extends Controller
             Auth::login($user, true);
             request()->session()->regenerate();
 
-            if ($available->isNotEmpty()) {
-                session(['available_youtube_channels' => $available->pluck('youtube_channel_id')->all()]);
-            }
-
-            return $user->activeChannelLink()->exists()
-                ? redirect()->route('dashboard')
-                : redirect()->route('profile.me');
+            $redirectUrl = $this->processChannelsAndRedirect($user, $available, $channels);
+            return redirect($redirectUrl);
         } catch (Throwable $e) {
             report($e);
             return redirect()->route('login')->withErrors(['google' => 'Google girişi tamamlanamadı. OAuth ayarlarını ve YouTube kanal erişimini kontrol edin.']);
@@ -130,7 +120,7 @@ class GoogleAuthController extends Controller
         }
 
         try {
-            $user = DB::transaction(function () use ($googleSub, $name, $email, $avatar, $accessToken, $available) {
+            $user = DB::transaction(function () use ($googleSub, $name, $email, $avatar, $accessToken) {
                 $user = User::firstOrNew(['google_sub' => $googleSub]);
                 if ($user->exists && $user->status !== 'active') {
                     return $user;
@@ -145,16 +135,6 @@ class GoogleAuthController extends Controller
                     $user->avatar_url = $avatar;
                 }
                 $user->save();
-
-                if ($available->isNotEmpty()) {
-                    foreach ($available as $data) {
-                        YouTubeChannel::updateOrCreate(
-                            ['youtube_channel_id' => $data['youtube_channel_id']],
-                            collect($data)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
-                        );
-                    }
-                    $user->update(['google_channel_ids' => $available->pluck('youtube_channel_id')->all()]);
-                }
 
                 if ($accessToken) {
                     $storedToken = YouTubeOAuthToken::firstOrNew(['user_id' => $user->id]);
@@ -174,13 +154,7 @@ class GoogleAuthController extends Controller
             Auth::login($user, true);
             $request->session()->regenerate();
 
-            if ($available->isNotEmpty()) {
-                session(['available_youtube_channels' => $available->pluck('youtube_channel_id')->all()]);
-            }
-
-            $redirectUrl = $user->activeChannelLink()->exists()
-                ? route('dashboard')
-                : route('profile.me');
+            $redirectUrl = $this->processChannelsAndRedirect($user, $available, $channels);
 
             return response()->json([
                 'success' => true,
@@ -190,6 +164,102 @@ class GoogleAuthController extends Controller
             report($e);
             return response()->json(['success' => false, 'message' => 'Giriş işlemi sırasında hata oluştu: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Kullanıcının Google hesabından çekilen tüm kanalları sisteme kaydeder,
+     * her bir kanalın son videolarını otomatik çeker,
+     * ilk kanalı aktif kanal olarak bağlar ve diğer kanalları saklar.
+     */
+    private function processChannelsAndRedirect(User $user, Collection $available, YouTubeChannelService $channelsService): string
+    {
+        if ($available->isEmpty()) {
+            return $user->activeChannelLink()->exists()
+                ? route('dashboard')
+                : route('channels.select');
+        }
+
+        $allChannelIds = [];
+        $firstChannel = null;
+
+        foreach ($available as $data) {
+            $ch = YouTubeChannel::updateOrCreate(
+                ['youtube_channel_id' => $data['youtube_channel_id']],
+                collect($data)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
+            );
+
+            $allChannelIds[] = $ch->youtube_channel_id;
+
+            // Bu kanalın son videolarını otomatik çek (böylece kullanıcı vitrin videolarını hemen seçebilir)
+            try {
+                $channelsService->syncChannelVideos($ch);
+            } catch (\Throwable $e) {
+                Log::warning("Girişte kanal videoları çekilemedi: {$ch->youtube_channel_id}", ['err' => $e->getMessage()]);
+            }
+
+            if (!$firstChannel) {
+                $firstChannel = $ch;
+            }
+        }
+
+        // Kullanıcının kayıtlı tüm Google kanal ID'lerini güncelle
+        $existingStored = (array) ($user->google_channel_ids ?? []);
+        $mergedIds = array_values(array_unique(array_filter(array_merge($existingStored, $allChannelIds))));
+        $user->update(['google_channel_ids' => $mergedIds]);
+        session(['available_youtube_channels' => $mergedIds]);
+
+        // Aktif kanal kontrolü: Kullanıcının henüz aktif bir kanalı yoksa ilk kanalı aktif yap
+        $hasActive = $user->activeChannelLink()->exists();
+        if (!$hasActive && $firstChannel) {
+            $isLinkedToOther = UserChannelLink::where('youtube_channel_id', $firstChannel->id)
+                ->whereNull('ended_at')
+                ->where('user_id', '<>', $user->id)
+                ->exists();
+
+            if (!$isLinkedToOther) {
+                UserChannelLink::create([
+                    'user_id'            => $user->id,
+                    'youtube_channel_id' => $firstChannel->id,
+                    'started_at'         => now(),
+                ]);
+            }
+        }
+
+        // Kullanıcının diğer kanallarını da UserChannelLink geçmişine ekle (ended_at = now())
+        // Böylece diğer kanalların da bu kullanıcıya ait olduğu DB düzeyinde bilinir
+        foreach ($available as $data) {
+            $ch = YouTubeChannel::where('youtube_channel_id', $data['youtube_channel_id'])->first();
+            if ($ch && !UserChannelLink::where('user_id', $user->id)->where('youtube_channel_id', $ch->id)->exists()) {
+                UserChannelLink::create([
+                    'user_id'            => $user->id,
+                    'youtube_channel_id' => $ch->id,
+                    'started_at'         => now(),
+                    'ended_at'           => now(),
+                ]);
+            }
+        }
+
+        $totalChannelsCount = count($mergedIds);
+
+        if ($totalChannelsCount > 1) {
+            session()->flash('status', "Google hesabınıza bağlı {$totalChannelsCount} YouTube kanalı başarıyla aktarıldı. Yönetmek istediğiniz kanalı seçerek vitrin videolarını belirleyebilirsiniz.");
+            return route('channels.select');
+        }
+
+        // Tek kanal varsa vitrin kontrolü yap
+        $activeLink = $user->activeChannelLink()->first();
+        if ($activeLink) {
+            $showcaseCount = UserVideoSelection::where('user_id', $user->id)
+                ->where('youtube_channel_id', $activeLink->youtube_channel_id)
+                ->count();
+
+            if ($showcaseCount < 3) {
+                session()->flash('status', "“{$activeLink->channel->title}” kanalınız bağlandı! Keşif havuzunda yer alması için lütfen 3 vitrin videosu seçin.");
+                return route('videos.showcase');
+            }
+        }
+
+        return route('dashboard');
     }
 
     private function verifyFirebaseToken(string $idToken): ?array

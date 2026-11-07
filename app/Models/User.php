@@ -42,7 +42,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserChannelLink::class)
             ->whereNull('ended_at')
-            ->latestOfMany('id');
+            ->ofMany(['id' => 'max'], function ($query) {
+                $query->whereNull('ended_at');
+            });
     }
 
     public function channelLinks(): HasMany

@@ -12,7 +12,7 @@ use Illuminate\View\View;
 
 class VideoShowcaseController extends Controller
 {
-    public function index(Request $request): View|RedirectResponse
+    public function index(Request $request, \App\Services\YouTubeChannelService $channelsService): View|RedirectResponse
     {
         $user = $request->user();
         $channel = $user->activeChannelLink?->channel;
@@ -25,7 +25,7 @@ class VideoShowcaseController extends Controller
         // Kanalın kayıtlı videosu yoksa otomatik olarak son 10 videosunu çek
         $existingCount = Video::where('youtube_channel_id', $channel->id)->count();
         if ($existingCount === 0) {
-            $this->syncChannelLatestVideos($channel);
+            $channelsService->syncChannelVideos($channel);
         }
 
         // Kanalın en son 10 videosu listelenir
@@ -184,7 +184,7 @@ class VideoShowcaseController extends Controller
     /**
      * Kanalın son 10 videosunu YouTube'dan yeniden senkronize eder.
      */
-    public function syncChannelVideos(Request $request): RedirectResponse
+    public function syncChannelVideos(Request $request, \App\Services\YouTubeChannelService $channelsService): RedirectResponse
     {
         $user = $request->user();
         $channel = $user->activeChannelLink?->channel;
@@ -193,7 +193,7 @@ class VideoShowcaseController extends Controller
             return back()->withErrors(['error' => 'Bağlı bir kanalınız bulunamadı.']);
         }
 
-        $added = $this->syncChannelLatestVideos($channel);
+        $added = $channelsService->syncChannelVideos($channel);
 
         if ($added > 0) {
             return redirect()->route('videos.showcase')

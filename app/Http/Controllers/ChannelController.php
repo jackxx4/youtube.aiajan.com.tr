@@ -93,11 +93,15 @@ class ChannelController extends Controller
 
             $newIds = [];
             foreach ($fetched as $data) {
-                YouTubeChannel::updateOrCreate(
+                $ch = YouTubeChannel::updateOrCreate(
                     ['youtube_channel_id' => $data['youtube_channel_id']],
                     collect($data)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
                 );
                 $newIds[] = $data['youtube_channel_id'];
+
+                try {
+                    $channelsService->syncChannelVideos($ch);
+                } catch (\Throwable) {}
             }
 
             $currentIds = (array) ($request->user()->google_channel_ids ?? []);
@@ -119,7 +123,7 @@ class ChannelController extends Controller
         }
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, YouTubeChannelService $channelsService): RedirectResponse
     {
         $user = $request->user();
         $active = $user->activeChannelLink()->first();
@@ -170,13 +174,9 @@ class ChannelController extends Controller
 
                 if ($channel) {
                     try {
-                        try {
-                    $this->syncInitialVideos($channel);
-                } catch (\Throwable $syncEx) {
-                    \Log::warning('syncInitialVideos atlandı: ' . $syncEx->getMessage());
-                }
+                        $channelsService->syncChannelVideos($channel);
                     } catch (\Throwable $syncEx) {
-                        \Log::warning('syncInitialVideos atlandı: ' . $syncEx->getMessage());
+                        \Log::warning('syncChannelVideos atlandı: ' . $syncEx->getMessage());
                     }
 
                     // Kullanıcının kayıtlı kanal listesine ekle
@@ -248,9 +248,9 @@ class ChannelController extends Controller
                 }
 
                 try {
-                    $this->syncInitialVideos($channel);
+                    $channelsService->syncChannelVideos($channel);
                 } catch (\Throwable $syncEx) {
-                    \Log::warning('syncInitialVideos atlandı: ' . $syncEx->getMessage());
+                    \Log::warning('syncChannelVideos atlandı: ' . $syncEx->getMessage());
                 }
             } catch (\DomainException $e) {
                 return back()->withErrors(['channel_id' => $e->getMessage()]);

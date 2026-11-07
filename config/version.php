@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'current' => '1.6.9',
-    'release_name' => 'Müstakil Yönetim Mimarisi (Ayrı Admin Tablosu, Başlıklara Göre Takipler, Vitrin Yönetimi) ve Çoklu Kanal Keşif Havuzu',
-    'updated_at' => '2026-11-08T01:00:00',
+    'current' => '1.7.0',
+    'release_name' => 'Tek Girişle Tüm YouTube Kanallarının Çekilmesi, Video Senkronizasyonu ve Güvenlik Sıkılaştırması',
+    'updated_at' => '2026-11-08T01:30:00',
 ];
