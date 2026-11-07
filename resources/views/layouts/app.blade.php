@@ -207,6 +207,7 @@
             <a href="{{ route('discovery.users', 'normal') }}" class="{{ $cur==='discovery' ? 'active' : '' }}"><span class="nav-icon">👥</span><span>Kullanıcı Keşfi</span></a>
             <a href="{{ route('discovery.users', 'supporter') }}" class="{{ $cur==='supporter' ? 'active' : '' }}"><span class="nav-icon">⭐</span><span>Destekçiler</span></a>
             <a href="{{ route('discovery.videos') }}" class="{{ $cur==='videos' ? 'active' : '' }}"><span class="nav-icon">🎬</span><span>Video Keşfi</span></a>
+            <a href="{{ route('videos.showcase') }}" class="{{ request()->routeIs('videos.showcase*') ? 'active' : '' }}"><span class="nav-icon">✨</span><span>Video Vitrinim</span></a>
             <a href="{{ route('profile.me') }}" class="{{ $cur==='profile' ? 'active' : '' }}"><span class="nav-icon">👤</span><span>Profilim</span></a>
             @if(auth()->check() && auth()->user()->role === 'admin')
                 <a href="{{ route('admin.dashboard') }}" class="{{ $cur==='admin' ? 'active' : '' }}"><span class="nav-icon">🔧</span><span>Yönetim</span></a>
@@ -343,7 +344,7 @@
 
     try {
         const firebaseConfig = {
-            apiKey: "{{ config('services.firebase.api_key', 'AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA') }}",
+            apiKey: "{{ config('services.firebase.api_key') }}",
             authDomain: "{{ config('services.firebase.project_id', 'aiajan-portfolio') }}.firebaseapp.com",
             projectId: "{{ config('services.firebase.project_id', 'aiajan-portfolio') }}"
         };

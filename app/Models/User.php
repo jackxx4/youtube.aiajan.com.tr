@@ -66,6 +66,11 @@ class User extends Authenticatable
         return $this->hasMany(PlatformFollow::class, 'followed_user_id');
     }
 
+    public function videoSelections(): HasMany
+    {
+        return $this->hasMany(UserVideoSelection::class);
+    }
+
     public function isSupporter(): bool
     {
         return $this->supporterStatuses()

@@ -149,7 +149,7 @@ class ChannelController extends Controller
             }
 
             session()->forget('available_youtube_channels');
-            return redirect()->route('dashboard')->with('status', 'YouTube kanalınız başarıyla bağlandı! Topluluğa hoş geldiniz.');
+            return redirect()->route('videos.showcase')->with('status', 'YouTube kanalınız bağlandı! Şimdi vitrine eklenecek videolarınızı seçin.');
         }
 
         // 2. Yöntem: Listeden kanal seçilmişse
@@ -183,7 +183,7 @@ class ChannelController extends Controller
             }
 
             session()->forget('available_youtube_channels');
-            return redirect()->route('dashboard')->with('status', 'YouTube kanalınız başarıyla bağlandı.');
+            return redirect()->route('videos.showcase')->with('status', 'YouTube kanalınız bağlandı! Şimdi vitrine eklenecek videolarınızı seçin.');
         }
 
         return back()->withErrors(['channel_input' => 'Lütfen bağlamak istediğiniz YouTube kanalını seçin veya kullanıcı adını girin.']);

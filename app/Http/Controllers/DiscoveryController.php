@@ -40,9 +40,14 @@ class DiscoveryController extends Controller {
   return redirect()->route('discovery.users',$pool)->with('status','Platform takipleriniz kaydedildi.');
  }
  public function videos(Request $request): View {
-  $selected=session('selected_video_ids');
-  $videos=is_array($selected)?Video::with('channel')->where('availability','available')->whereIn('id',$selected)->get():Video::with('channel')->where('availability','available')->latest('published_at')->limit(10)->get();
-  return view('discovery.videos',compact('videos','selected'));
+  $user=$request->user();
+  $videos=Video::with('channel')
+   ->where('availability','available')
+   ->whereHas('userSelections',fn($q)=>$q->where('user_id','<>',$user->id))
+   ->inRandomOrder()
+   ->limit(10)
+   ->get();
+  return view('discovery.videos',compact('videos'));
  }
  public function selectVideos(Request $request): RedirectResponse {
   $data=$request->validate(['video_ids'=>['nullable','array','max:5'],'video_ids.*'=>['integer','distinct','exists:videos,id']]);

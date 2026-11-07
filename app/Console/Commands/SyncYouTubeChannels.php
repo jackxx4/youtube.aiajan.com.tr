@@ -129,7 +129,7 @@ class SyncYouTubeChannels extends Command
 
                 $playlist = $yt->playlistItems->listPlaylistItems('snippet,contentDetails', [
                     'playlistId' => $uploads,
-                    'maxResults' => 3,
+                    'maxResults' => 10,
                 ]);
 
                 foreach ($playlist->getItems() as $entry) {
