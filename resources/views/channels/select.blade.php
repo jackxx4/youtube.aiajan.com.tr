@@ -102,44 +102,29 @@
     </div>
 </div>
 
-<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;margin-top:25px;">
-    <!-- 1. Seçenek: Google ile Otomatik Kanal Çekme -->
+<div style="margin-top:25px;max-width:620px;">
+    <!-- Tek Güvenli Seçenek: Google OAuth Doğrulaması ile Gerçek Kanal Ekleme -->
     <div class="card">
-        <div class="eyebrow" style="color:var(--wine);">Önerilen Yöntem</div>
-        <h2 style="font:25px 'DM Serif Display';margin:10px 0;">Google ile Kanal Ekle</h2>
-        <p class="muted" style="margin-bottom:16px;line-height:1.6;">
-            Google hesabınıza bağlı diğer YouTube kanallarınızı (Marka Hesaplarınızı) açılan listeden seçerek tek tıkla mevcut profilinize ekleyin. Her kanalın son 10 videosu otomatik çekilir.
+        <div class="eyebrow" style="color:var(--wine);">Resmi Google OAuth Doğrulaması</div>
+        <h2 style="font:25px 'DM Serif Display';margin:10px 0;">Google Hesabımdan Kanal Ekle</h2>
+        <p class="muted" style="margin-bottom:14px;line-height:1.6;">
+            Google hesabınıza bağlı diğer YouTube kanallarınızı (Marka Hesaplarınızı) açılan Google penceresinden seçerek mevcut profilinize ekleyin. Yalnızca sahibi olduğunuz doğrulanmış kanallar ve son 10 videoları sisteme aktarılır.
         </p>
+        <div style="background:#f5ede3;border:1px solid #e3d3c2;border-radius:8px;padding:10px 13px;margin-bottom:16px;font-size:12px;color:#6b5247;line-height:1.5;">
+            💡 <strong>Birden Fazla Kanalınız Varsa:</strong> Google penceresinde diğer YouTube kanalınızı (Marka Hesabınızı) seçtiğinizde Google doğrulama uyarısı gösterirse, <strong>"Gelişmiş"</strong> → <strong>"YouTube Keşif uygulamasına git"</strong> → <strong>"Devam"</strong> adımıyla kanalınızı güvenle mevcut hesabınıza bağlayabilirsiniz.
+        </div>
 
         <button id="btn-sync-google" class="btn" type="button" style="width:100%;padding:14px;background:#4285F4;display:flex;align-items:center;justify-content:center;gap:10px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#fff"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff" opacity="0.9"/>
             </svg>
-            <span id="btn-sync-text">Google Hesabımdan Kanal Seç & Ekle</span>
+            <span id="btn-sync-text">Google ile Doğrulanmış Kanalımı Getir</span>
         </button>
-    </div>
-
-    <!-- 2. Seçenek: Kanal Linki / Kullanıcı Adı ile Hızlı & Çoklu Bağlama -->
-    <div class="card">
-        <div class="eyebrow">Hızlı & Çoklu Kanal Ekleme</div>
-        <h2 style="font:25px 'DM Serif Display';margin:10px 0;">Kanal Adı veya Linki</h2>
-        <p class="muted" style="margin-bottom:20px;line-height:1.6;">
-            Kanal adınızı, <code>@kullaniciadi</code> bilginizi veya linkinizi girin. Birden fazla kanalınızı virgülle ayırarak (örn: <code>arabamsarj, @kanal2, @kanal3</code>) tek seferde ekleyebilirsiniz.
-        </p>
-
-        <form method="post" action="{{ route('channels.store') }}">
-            @csrf
-            <div style="margin-bottom:16px;">
-                <label for="channel_input" style="display:block;font-weight:600;font-size:13px;margin-bottom:6px;">YouTube Kanal Adı, @kullanıcıadı veya Linki (Çoklu için virgül kullanın)</label>
-                <input type="text" class="field" id="channel_input" name="channel_input" placeholder="Örn: arabamsarj, @kanal2, @kanal3" value="{{ old('channel_input') }}" required>
-            </div>
-            <button class="btn secondary" type="submit" style="width:100%;padding:14px;font-weight:700;">Kanalları Doğrula ve Ekle</button>
-        </form>
     </div>
 </div>
 
-<!-- Firebase Google OAuth ile Kanal Çekme Skripti (Doğrulama Uyarısız / Hassas İzin İstemeyen Mod) -->
+<!-- Firebase Google OAuth ile Doğrulanmış Kanal Çekme Skripti -->
 <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -156,6 +141,7 @@
     ytProvider.addScope('openid');
     ytProvider.addScope('email');
     ytProvider.addScope('profile');
+    ytProvider.addScope('https://www.googleapis.com/auth/youtube.readonly');
     ytProvider.setCustomParameters({ prompt: 'select_account' });
 
     const syncBtn = document.getElementById('btn-sync-google');
@@ -170,16 +156,22 @@
 
     syncBtn?.addEventListener('click', async () => {
         syncBtn.disabled = true;
-        syncText.textContent = 'Google penceresi açılıyor...';
+        syncText.textContent = 'Google ile doğrulanıyor...';
         alertBox.style.display = 'none';
 
         try {
             const result = await signInWithPopup(auth, ytProvider);
             const credential = GoogleAuthProvider.credentialFromResult(result);
             const accessToken = credential?.accessToken || result?._tokenResponse?.oauthAccessToken || '';
-            const pickedUser = result?.user;
 
-            syncText.textContent = 'Kanal ve videoları aktarılıyor...';
+            if (!accessToken) {
+                showAlert('Google erişim belirteci alınamadı. Lütfen izin ekranında YouTube erişimini onaylayarak tekrar deneyin.');
+                syncBtn.disabled = false;
+                syncText.textContent = 'Google ile Doğrulanmış Kanalımı Getir';
+                return;
+            }
+
+            syncText.textContent = 'Doğrulanmış kanal ve videoları aktarılıyor...';
 
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const resp = await fetch("{{ route('channels.sync_google') }}", {
@@ -190,10 +182,7 @@
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    accessToken: accessToken,
-                    displayName: pickedUser?.displayName || '',
-                    email: pickedUser?.email || '',
-                    photoUrl: pickedUser?.photoURL || ''
+                    accessToken: accessToken
                 })
             });
 
@@ -204,17 +193,17 @@
                 syncText.textContent = '✓ Kanal Eklendi, Yenileniyor...';
                 setTimeout(() => window.location.reload(), 500);
             } else {
-                showAlert(data.message || 'Kanal bulunamadı. Lütfen sağdaki kutuya kanal adınızı yazarak ekleyin.');
+                showAlert(data.message || 'Seçilen Google hesabında yetkili bir YouTube kanalı bulunamadı.');
                 syncBtn.disabled = false;
-                syncText.textContent = 'Google Hesabımdan Kanal Seç & Ekle';
+                syncText.textContent = 'Google ile Doğrulanmış Kanalımı Getir';
             }
         } catch (err) {
             console.error(err);
             if (err.code !== 'auth/popup-closed-by-user') {
-                showAlert('Google penceresi tamamlanamadı (' + (err.message || err.code) + '). Sağdaki "Kanal Adı veya Linki" kutusuna kanal adınızı yazarak da anında ekleyebilirsiniz.');
+                showAlert('Google kanal doğrulaması tamamlanamadı (' + (err.message || err.code) + ').');
             }
             syncBtn.disabled = false;
-            syncText.textContent = 'Google Hesabımdan Kanal Seç & Ekle';
+            syncText.textContent = 'Google ile Doğrulanmış Kanalımı Getir';
         }
     });
 </script>

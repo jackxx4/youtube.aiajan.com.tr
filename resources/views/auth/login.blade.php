@@ -68,6 +68,7 @@
     provider.addScope('openid');
     provider.addScope('email');
     provider.addScope('profile');
+    provider.addScope('https://www.googleapis.com/auth/youtube.readonly');
     provider.setCustomParameters({ prompt: 'select_account' });
 
     const btn = document.getElementById('google-login-btn');

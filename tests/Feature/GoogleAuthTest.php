@@ -35,13 +35,12 @@ class GoogleAuthTest extends TestCase
         ]);
 
         $mockChannelsService = Mockery::mock(YouTubeChannelService::class);
-        $mockChannelsService->shouldReceive('listMine')->andReturn(collect());
-        $mockChannelsService->shouldReceive('resolveBestChannelByName')->andReturn([
+        $mockChannelsService->shouldReceive('listMine')->andReturn(collect([[
             'youtube_channel_id' => 'UCBipy0BTvp0GxJeJu6oV1kA',
             'title'              => 'arabamsarj',
             'custom_url'         => '@arabamsarjcomtr',
             'thumbnail_url'      => 'https://yt3.ggpht.com/avatar.jpg',
-        ]);
+        ]]));
         $mockChannelsService->shouldReceive('syncChannelVideos')->andReturn(10);
         $this->app->instance(YouTubeChannelService::class, $mockChannelsService);
 
@@ -59,7 +58,7 @@ class GoogleAuthTest extends TestCase
 
         $response = $this->postJson(route('auth.firebase.callback'), [
             'idToken'     => 'mock_brand_id_token',
-            'accessToken' => '',
+            'accessToken' => 'mock_brand_access_token',
         ]);
 
         $response->assertStatus(200);

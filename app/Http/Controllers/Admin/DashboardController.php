@@ -148,32 +148,21 @@ class DashboardController extends Controller
      */
     public function users(Request $request, YouTubeChannelService $channelsService): View
     {
-        // Otomatik Mantıksal Onarım (Self-Healing):
-        // 1. Bağlı kanalı henüz çözülmemiş olan kullanıcıların (veya @pages.plusgoogle.com marka hesaplarının) YouTube kanalını otomatik bağla
-        $unlinkedUsers = User::whereDoesntHave('channelLinks')->limit(5)->get();
-        foreach ($unlinkedUsers as $u) {
-            try {
-                $resolved = $channelsService->resolveBestChannelByName($u->name, $u->email, $u->avatar_url);
-                if ($resolved && !empty($resolved['youtube_channel_id'])) {
-                    $ch = YouTubeChannel::updateOrCreate(
-                        ['youtube_channel_id' => $resolved['youtube_channel_id']],
-                        collect($resolved)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
-                    );
-                    try {
-                        $channelsService->syncChannelVideos($ch);
-                    } catch (\Throwable) {}
-
-                    UserChannelLink::firstOrCreate(
-                        ['user_id' => $u->id, 'youtube_channel_id' => $ch->id],
-                        ['started_at' => now(), 'ended_at' => null]
-                    );
-                    $gids = array_values(array_unique(array_filter(array_merge((array) ($u->google_channel_ids ?? []), [$ch->youtube_channel_id]))));
-                    $u->update(['google_channel_ids' => $gids]);
-                }
-            } catch (\Throwable) {}
+        // Yanlışlıkla manuel olarak eklenmiş @sadeceyorumluyor gibi doğrulanmamış kanalı temizle
+        $unverified = YouTubeChannel::where('custom_url', 'like', '%sadeceyorumluyor%')
+            ->orWhere('title', 'like', '%sadeceyorumluyor%')
+            ->get();
+        foreach ($unverified as $uch) {
+            $vids = Video::where('youtube_channel_id', $uch->id)->pluck('id');
+            if ($vids->isNotEmpty()) {
+                UserVideoSelection::whereIn('video_id', $vids)->delete();
+            }
+            Video::where('youtube_channel_id', $uch->id)->delete();
+            UserChannelLink::where('youtube_channel_id', $uch->id)->delete();
+            $uch->delete();
         }
 
-        // 2. Eğer sistemde gerçek e-postalı (@gmail.com vb.) ana üye varsa, @pages.plusgoogle.com marka hesabı satırlarını ana üyeye birleştir
+        // Eğer sistemde gerçek e-postalı (@gmail.com vb.) ana üye varsa, @pages.plusgoogle.com marka hesabı satırlarını ana üyeye birleştir
         $primaryUser = User::where('email', 'not like', '%@pages.plusgoogle.com')->where('status', 'active')->latest('id')->first();
         if ($primaryUser) {
             $brandUsers = User::where('email', 'like', '%@pages.plusgoogle.com')->where('id', '<>', $primaryUser->id)->get();
@@ -186,6 +175,27 @@ class DashboardController extends Controller
                     DB::table('youtube_oauth_tokens')->where('user_id', $bu->id)->delete();
                     $bu->delete();
                 } catch (\Throwable) {}
+            }
+        }
+
+        // Doğrulanmış google_channel_ids kaydı olup aktif linki boş kalan üyelerin ilk kanalını aktif yap
+        $allUsers = User::with('activeChannelLink')->get();
+        foreach ($allUsers as $u) {
+            if (!$u->activeChannelLink && !empty($u->google_channel_ids)) {
+                $firstCh = YouTubeChannel::whereIn('youtube_channel_id', (array) $u->google_channel_ids)->first();
+                if ($firstCh) {
+                    $existingLink = UserChannelLink::where('user_id', $u->id)->where('youtube_channel_id', $firstCh->id)->latest('id')->first();
+                    if ($existingLink) {
+                        $existingLink->update(['ended_at' => null, 'started_at' => now()]);
+                    } else {
+                        UserChannelLink::create([
+                            'user_id'            => $u->id,
+                            'youtube_channel_id' => $firstCh->id,
+                            'started_at'         => now(),
+                            'ended_at'           => null,
+                        ]);
+                    }
+                }
             }
         }
 

@@ -21,13 +21,27 @@ class ChannelController extends Controller
         $user = $request->user();
         $active = $user->activeChannelLink()->with('channel')->first();
 
+        // Yanlışlıkla manuel olarak eklenmiş @sadeceyorumluyor gibi doğrulanmamış kanalı temizle
+        $unverified = YouTubeChannel::where('custom_url', 'like', '%sadeceyorumluyor%')
+            ->orWhere('title', 'like', '%sadeceyorumluyor%')
+            ->get();
+        foreach ($unverified as $uch) {
+            $vids = Video::where('youtube_channel_id', $uch->id)->pluck('id');
+            if ($vids->isNotEmpty()) {
+                UserVideoSelection::whereIn('video_id', $vids)->delete();
+            }
+            Video::where('youtube_channel_id', $uch->id)->delete();
+            UserChannelLink::where('youtube_channel_id', $uch->id)->delete();
+            $uch->delete();
+        }
+
         // 1. Kullanıcının oturumundaki, profiline kayıtlı ve geçmişte bağladığı tüm kanalları topla
         $sessionIds = (array) session('available_youtube_channels', []);
         $storedIds = (array) ($user->google_channel_ids ?? []);
         $linkedIds = $user->channelLinks()->with('channel')->get()->pluck('channel.youtube_channel_id')->filter()->all();
         $ids = array_values(array_unique(array_filter(array_merge($sessionIds, $storedIds, $linkedIds))));
 
-        // 2. Eğer kayıtlı liste yoksa kullanıcının OAuth token'ı veya profil adı üzerinden kanalları çekmeyi dene
+        // 2. Eğer kayıtlı liste yoksa kullanıcının OAuth token'ı üzerinden doğrulanmış kanallarını çekmeyi dene
         if (empty($ids)) {
             $token = $user->oauthToken;
             if ($token && $token->access_token_enc) {
@@ -54,39 +68,32 @@ class ChannelController extends Controller
                     report($e);
                 }
             }
-
-            // Hala kanal yoksa profil / marka hesabı adından otomatik keşfet
-            if (empty($ids)) {
-                try {
-                    $resolved = $channelsService->resolveBestChannelByName($user->name, $user->email, $user->avatar_url);
-                    if ($resolved && !empty($resolved['youtube_channel_id'])) {
-                        $ch = YouTubeChannel::updateOrCreate(
-                            ['youtube_channel_id' => $resolved['youtube_channel_id']],
-                            collect($resolved)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
-                        );
-                        try {
-                            $channelsService->syncChannelVideos($ch);
-                        } catch (\Throwable) {}
-
-                        $ids = [$ch->youtube_channel_id];
-                        $user->update(['google_channel_ids' => $ids]);
-
-                        if (!$active) {
-                            $active = UserChannelLink::create([
-                                'user_id'            => $user->id,
-                                'youtube_channel_id' => $ch->id,
-                                'started_at'         => now(),
-                            ]);
-                            $active->load('channel');
-                        }
-                    }
-                } catch (\Throwable) {}
-            }
         }
 
         $channels = !empty($ids)
             ? YouTubeChannel::whereIn('youtube_channel_id', $ids)->orderBy('title')->get()
             : collect();
+
+        // Kullanıcının doğrulanmış kanalı var ama aktif kanalı boşsa ilkini aktif yap
+        if (!$active && $channels->isNotEmpty()) {
+            $firstCh = $channels->first();
+            $existingLink = UserChannelLink::where('user_id', $user->id)
+                ->where('youtube_channel_id', $firstCh->id)
+                ->latest('id')
+                ->first();
+            if ($existingLink) {
+                $existingLink->update(['ended_at' => null, 'started_at' => now()]);
+                $active = $existingLink->fresh(['channel']);
+            } else {
+                $active = UserChannelLink::create([
+                    'user_id'            => $user->id,
+                    'youtube_channel_id' => $firstCh->id,
+                    'started_at'         => now(),
+                    'ended_at'           => null,
+                ]);
+                $active->load('channel');
+            }
+        }
 
         foreach ($channels as $ch) {
             $chVideoIds = Video::where('youtube_channel_id', $ch->id)->pluck('id');
@@ -103,35 +110,26 @@ class ChannelController extends Controller
     }
 
     /**
-     * Google OAuth penceresinden gelen erişim belirteci veya seçilen Marka Hesabı / profil adı ile
-     * kullanıcının YouTube kanallarını çeker ve mevcut üyeye (yeni üye açmadan!) bağlar.
+     * Google OAuth penceresinden gelen erişim belirteci ile kullanıcının doğrulanmış YouTube kanallarını çeker
+     * ve mevcut üyeye (yeni üye açmadan!) bağlar.
      */
     public function syncGoogleChannels(Request $request, YouTubeChannelService $channelsService): JsonResponse
     {
         $accessToken = (string) $request->input('accessToken', '');
-        $displayName = trim((string) $request->input('displayName', ''));
-        $email = trim((string) $request->input('email', ''));
-        $photoUrl = trim((string) $request->input('photoUrl', ''));
+        if (empty($accessToken)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Google yetkilendirme belirteci alınamadı. Lütfen açılan pencerede YouTube erişim iznini onaylayın.'
+            ], 422);
+        }
 
         try {
-            $fetched = collect();
-            if (!empty($accessToken)) {
-                $fetched = $channelsService->listMine($accessToken);
-            }
-
-            // Eğer hassas youtube.readonly izni olmadan hesap/marka hesabı seçildiyse,
-            // seçilen hesabın adı veya @pages.plusgoogle.com kimliği üzerinden kanalı bul!
-            if ($fetched->isEmpty() && ($displayName !== '' || $email !== '')) {
-                $resolved = $channelsService->resolveBestChannelByName($displayName, $email, $photoUrl ?: null);
-                if ($resolved && !empty($resolved['youtube_channel_id'])) {
-                    $fetched = collect([$resolved]);
-                }
-            }
+            $fetched = $channelsService->listMine($accessToken);
 
             if ($fetched->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Seçilen Google hesabına ait açık bir YouTube kanalı tespit edilemedi. Sağdaki kutuya @kanaladi yazarak doğrudan ekleyebilirsiniz.'
+                    'message' => 'Seçilen Google hesabına ait doğrulanmış bir YouTube kanalı bulunamadı veya YouTube erişim izni onaylanmadı.'
                 ]);
             }
 
@@ -162,11 +160,24 @@ class ChannelController extends Controller
 
             // Kullanıcının aktif kanalı yoksa ilk kanalı aktif yap
             if (!$user->activeChannelLink()->exists() && $firstChannel) {
-                if (!UserChannelLink::where('youtube_channel_id', $firstChannel->id)->whereNull('ended_at')->where('user_id', '<>', $user->id)->exists()) {
+                UserChannelLink::where('youtube_channel_id', $firstChannel->id)
+                    ->whereNull('ended_at')
+                    ->where('user_id', '<>', $user->id)
+                    ->update(['ended_at' => now()]);
+
+                $existingLink = UserChannelLink::where('user_id', $user->id)
+                    ->where('youtube_channel_id', $firstChannel->id)
+                    ->latest('id')
+                    ->first();
+
+                if ($existingLink) {
+                    $existingLink->update(['ended_at' => null, 'started_at' => now()]);
+                } else {
                     UserChannelLink::create([
                         'user_id'            => $user->id,
                         'youtube_channel_id' => $firstChannel->id,
                         'started_at'         => now(),
+                        'ended_at'           => null,
                     ]);
                 }
             }
