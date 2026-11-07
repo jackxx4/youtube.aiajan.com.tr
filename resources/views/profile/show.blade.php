@@ -119,7 +119,43 @@
         </div>
     @endif
 
-    <!-- 3. İstatistikler & Topluluk Metrikleri Grid -->
+    <!-- 3. Kanal Geçmişi -->
+    @if($allLinks->count() > 0)
+    <div class="card" style="margin-bottom:24px;">
+        <div class="eyebrow" style="margin-bottom:14px;">Kanal Geçmişi</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            @foreach($allLinks as $link)
+            @php $isActive = is_null($link->ended_at); @endphp
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:10px;background:{{ $isActive ? 'var(--sand)' : 'transparent' }};border:1px solid {{ $isActive ? 'var(--rust)' : 'var(--line)' }};">
+                @if($link->channel?->thumbnail_url)
+                    <img src="{{ $link->channel->thumbnail_url }}" alt="{{ $link->channel->title }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">
+                @else
+                    <div style="width:44px;height:44px;border-radius:50%;background:var(--wine);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0;">▶</div>
+                @endif
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        {{ $link->channel?->title ?? 'Bilinmeyen Kanal' }}
+                    </div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px;">
+                        {{ $link->channel?->custom_url ?? ('ID: ' . ($link->channel?->youtube_channel_id ?? '-')) }}
+                        · Bağlandı: {{ $link->started_at?->translatedFormat('d M Y') ?? '-' }}
+                        @if(!$isActive && $link->ended_at)
+                            · Ayrıldı: {{ $link->ended_at->translatedFormat('d M Y') }}
+                        @endif
+                    </div>
+                </div>
+                @if($isActive)
+                    <span style="padding:4px 10px;border-radius:6px;background:#e6f4ea;color:#137333;font-size:12px;font-weight:600;white-space:nowrap;">✓ Aktif</span>
+                @else
+                    <span style="padding:4px 10px;border-radius:6px;background:var(--sand);color:var(--muted);font-size:12px;white-space:nowrap;">Geçmiş</span>
+                @endif
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
+    <!-- 4. İstatistikler & Topluluk Metrikleri Grid -->
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:24px;">
         <div class="card" style="padding:18px;">
             <div class="eyebrow">Platform Takibi</div>

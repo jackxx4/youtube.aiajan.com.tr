@@ -17,6 +17,7 @@ class ProfileController extends Controller
         $isMe = ($request->user() && $request->user()->id === $profile->id);
         $activeLink = $profile->activeChannelLink()->with('channel')->first();
         $channel = $activeLink?->channel;
+        $allLinks = $profile->channelLinks()->with('channel')->orderByDesc('started_at')->get();
         $followsCount = $profile->follows()->count();
         $followersCount = $profile->followers()->count();
         $isSupporter = $profile->isSupporter();
@@ -26,6 +27,7 @@ class ProfileController extends Controller
             'channel',
             'isMe',
             'activeLink',
+            'allLinks',
             'followsCount',
             'followersCount',
             'isSupporter'
