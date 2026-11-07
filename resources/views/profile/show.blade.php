@@ -198,6 +198,12 @@
                 </div>
                 @if($isActive)
                     <span style="padding:4px 10px;border-radius:6px;background:#e6f4ea;color:#137333;font-size:12px;font-weight:600;white-space:nowrap;">✓ Aktif</span>
+                @elseif($isMe && $link->channel)
+                    <form method="POST" action="{{ route('channels.store') }}" style="display:inline;">
+                        @csrf
+                        <input type="hidden" name="channel_id" value="{{ $link->channel->youtube_channel_id }}">
+                        <button type="submit" style="padding:4px 10px;border-radius:6px;background:var(--sand);color:var(--rust);font-size:12px;font-weight:600;white-space:nowrap;border:1px solid var(--rust);cursor:pointer;">Tekrar Bağla</button>
+                    </form>
                 @else
                     <span style="padding:4px 10px;border-radius:6px;background:var(--sand);color:var(--muted);font-size:12px;white-space:nowrap;">Geçmiş</span>
                 @endif

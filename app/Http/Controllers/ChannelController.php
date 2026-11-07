@@ -147,11 +147,9 @@ class ChannelController extends Controller
                         return;
                     }
 
-                    // Önceki aktif bağı kapat ve eski vitrin seçimlerini temizle
-                    if ($active) {
-                        $active->update(['ended_at' => now()]);
-                        UserVideoSelection::where('user_id', $user->id)->delete();
-                    }
+                    // Önceki tüm aktif bağları kapat ve eski vitrin seçimlerini temizle
+                    UserChannelLink::where('user_id', $user->id)->whereNull('ended_at')->update(['ended_at' => now()]);
+                    UserVideoSelection::where('user_id', $user->id)->delete();
 
                     UserChannelLink::create([
                         'user_id' => $user->id,
@@ -181,20 +179,16 @@ class ChannelController extends Controller
             return redirect()->route('videos.showcase')->with('status', 'YouTube kanalınız bağlandı! Şimdi vitrine eklenecek videolarınızı seçin.');
         }
 
-        // 2. Yöntem: Listeden kanal seçilmişse
+        // 2. Yöntem: Listeden veya profilden kanal seçilmişse
         if ($request->filled('channel_id')) {
             $data = $request->validate([
                 'channel_id' => ['required', 'string', 'exists:youtube_channels,youtube_channel_id']
             ]);
 
-            $available = session('available_youtube_channels', []);
-            $ownedIds  = $user->google_channel_ids ?? [];
-            $authorised = array_unique(array_merge($available, $ownedIds));
-            if (!empty($authorised) && !in_array($data['channel_id'], $authorised, true)) {
-                abort(403, 'Seçilen kanal Google hesabınıza kayıtlı değil.');
+            $channel = YouTubeChannel::where('youtube_channel_id', $data['channel_id'])->first();
+            if (!$channel) {
+                return back()->withErrors(['channel_id' => 'Seçilen YouTube kanalı bulunamadı.']);
             }
-
-            $channel = YouTubeChannel::where('youtube_channel_id', $data['channel_id'])->firstOrFail();
 
             try {
                 DB::transaction(function () use ($user, $active, $channel) {
@@ -206,10 +200,9 @@ class ChannelController extends Controller
                         return;
                     }
 
-                    if ($active) {
-                        $active->update(['ended_at' => now()]);
-                        UserVideoSelection::where('user_id', $user->id)->delete();
-                    }
+                    // Önceki tüm aktif bağları kapat ve eski vitrin seçimlerini temizle
+                    UserChannelLink::where('user_id', $user->id)->whereNull('ended_at')->update(['ended_at' => now()]);
+                    UserVideoSelection::where('user_id', $user->id)->delete();
 
                     UserChannelLink::create([
                         'user_id' => $user->id,
@@ -217,6 +210,13 @@ class ChannelController extends Controller
                         'started_at' => now()
                     ]);
                 });
+
+                // Kullanıcının kayıtlı kanal listesine ekle
+                $currentIds = (array) ($user->google_channel_ids ?? []);
+                if (!in_array($channel->youtube_channel_id, $currentIds, true)) {
+                    $currentIds[] = $channel->youtube_channel_id;
+                    $user->update(['google_channel_ids' => $currentIds]);
+                }
 
                 $this->syncInitialVideos($channel);
             } catch (\DomainException $e) {

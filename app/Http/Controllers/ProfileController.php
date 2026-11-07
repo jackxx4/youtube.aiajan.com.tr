@@ -23,9 +23,12 @@ class ProfileController extends Controller
         $followersCount = $profile->followers()->count();
         $isSupporter = $profile->isSupporter();
 
-        $googleChannelIds = $profile->google_channel_ids ?? [];
-        $ownedChannels = $googleChannelIds
-            ? YouTubeChannel::whereIn('youtube_channel_id', $googleChannelIds)->orderBy('title')->get()
+        $storedIds = (array) ($profile->google_channel_ids ?? []);
+        $linkedIds = $allLinks->pluck('channel.youtube_channel_id')->filter()->all();
+        $allUserChannelIds = array_values(array_unique(array_filter(array_merge($storedIds, $linkedIds))));
+
+        $ownedChannels = !empty($allUserChannelIds)
+            ? YouTubeChannel::whereIn('youtube_channel_id', $allUserChannelIds)->orderBy('title')->get()
             : collect();
 
         return view('profile.show', compact(
