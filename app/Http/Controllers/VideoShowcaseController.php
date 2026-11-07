@@ -43,15 +43,20 @@ class VideoShowcaseController extends Controller
         abort_unless($channel, 422, 'Aktif kanal bulunamadı.');
 
         $data = $request->validate([
-            'video_ids'   => ['required', 'array', 'min:1', 'max:3'],
+            'video_ids'   => ['nullable', 'array', 'max:3'],
             'video_ids.*' => ['integer', 'distinct', 'exists:videos,id'],
         ], [
-            'video_ids.required' => 'Lütfen vitrininizde sergilemek için en az 1 video seçin.',
-            'video_ids.min'      => 'Vitrininizde sergilemek için en az 1 video seçmelisiniz.',
-            'video_ids.max'      => 'Vitrinde en fazla 3 video seçebilirsiniz.',
+            'video_ids.max' => 'Vitrinde en fazla 3 video seçebilirsiniz.',
         ]);
 
         $ids = array_map('intval', $data['video_ids'] ?? []);
+
+        // Eğer hiç video seçilmemişse vitrin boşaltılır
+        if (empty($ids)) {
+            UserVideoSelection::where('user_id', $user->id)->delete();
+            return redirect()->route('videos.showcase')
+                ->with('status', 'Vitrininiz boşaltıldı. Dilediğiniz zaman yeni videolar seçebilirsiniz.');
+        }
 
         // Kanalın son 10 videosu arasından seçim yapıldığı doğrulanır
         $allowedIds = Video::where('youtube_channel_id', $channel->id)
@@ -77,6 +82,62 @@ class VideoShowcaseController extends Controller
 
         return redirect()->route('videos.showcase')
             ->with('status', count($ids) . ' video vitrininize başarıyla kaydedildi! (1-3 video hakkınızdan ' . count($ids) . ' tanesini kullandınız)');
+    }
+
+    /**
+     * Vitrindeki tekil bir videoyu vitrinden kaldırır.
+     */
+    public function removeSingle(Request $request, Video $video): RedirectResponse
+    {
+        $user = $request->user();
+        $channel = $user->activeChannelLink?->channel;
+
+        abort_unless($channel, 422, 'Aktif kanal bulunamadı.');
+
+        $deleted = UserVideoSelection::where('user_id', $user->id)
+            ->where('video_id', $video->id)
+            ->delete();
+
+        if ($deleted) {
+            return back()->with('status', '“' . $video->title . '” videosu vitrininizden kaldırıldı.');
+        }
+
+        return back()->withErrors(['error' => 'Bu video vitrininizde bulunamadı.']);
+    }
+
+    /**
+     * Tekil bir videoyu doğrudan vitrine ekler.
+     */
+    public function addSingle(Request $request, Video $video): RedirectResponse
+    {
+        $user = $request->user();
+        $channel = $user->activeChannelLink?->channel;
+
+        abort_unless($channel, 422, 'Aktif kanal bulunamadı.');
+        abort_unless($video->youtube_channel_id === $channel->id, 403, 'Bu video kanalınıza ait değil.');
+
+        $currentCount = UserVideoSelection::where('user_id', $user->id)->count();
+        if ($currentCount >= 3) {
+            return back()->withErrors(['error' => 'Vitrininizde en fazla 3 video yer alabilir. Yeni bir video eklemek için önce mevcut bir videoyu kaldırın.']);
+        }
+
+        UserVideoSelection::firstOrCreate([
+            'user_id' => $user->id,
+            'video_id' => $video->id,
+        ]);
+
+        return back()->with('status', '“' . $video->title . '” videosu vitrininize eklendi! (Kullanılan hak: ' . ($currentCount + 1) . '/3)');
+    }
+
+    /**
+     * Vitrindeki tüm videoları sıfırlar / kaldırır.
+     */
+    public function clearAll(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        UserVideoSelection::where('user_id', $user->id)->delete();
+
+        return back()->with('status', 'Vitrininizdeki tüm videolar kaldırıldı.');
     }
 
     /**

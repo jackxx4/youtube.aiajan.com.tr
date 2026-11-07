@@ -61,6 +61,9 @@ Route::middleware('auth')->group(function(){
  Route::post('/kesfet/videolar/sifirla',[DiscoveryController::class,'resetVideos'])->name('discovery.videos.reset');
  Route::get('/vitrenim',[VideoShowcaseController::class,'index'])->name('videos.showcase');
  Route::post('/vitrenim',[VideoShowcaseController::class,'update'])->name('videos.showcase.update');
+ Route::delete('/vitrenim/videolar/{video}',[VideoShowcaseController::class,'removeSingle'])->name('videos.showcase.remove');
+ Route::post('/vitrenim/videolar/{video}/ekle',[VideoShowcaseController::class,'addSingle'])->name('videos.showcase.add_single');
+ Route::post('/vitrenim/sifirla',[VideoShowcaseController::class,'clearAll'])->name('videos.showcase.clear');
  Route::post('/vitrenim/senkronize',[VideoShowcaseController::class,'syncChannelVideos'])->name('videos.showcase.sync');
  Route::post('/vitrenim/video-ekle',[VideoShowcaseController::class,'addVideoByUrl'])->name('videos.showcase.add_url');
  Route::prefix('yonetim')->name('admin.')->middleware('admin')->group(function(){Route::get('/',AdminDashboardController::class)->name('dashboard');});

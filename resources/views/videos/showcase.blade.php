@@ -6,10 +6,21 @@
     <h1 class="h1">Video Vitrinim</h1>
     <p class="lead">Kanalınızın <strong>son 10 videosu</strong> arasından dilediğiniz <strong>1, 2 veya en fazla 3 videoyu</strong> seçerek vitrininizde sergileyebilirsiniz. Seçtiğiniz videolar keşif akışında diğer üreticilere önerilir.</p>
 
-    <!-- Ayrı Senkronizasyon Formu (HTML5 form attribute ile bağlanır, iç içe form hatasını önler) -->
+    <!-- Ayrı Senkronizasyon ve Vitrin Sıfırlama Formları (HTML5 form attribute ile bağlanır) -->
     <form method="POST" action="{{ route('videos.showcase.sync') }}" id="syncForm" style="display:none;">
         @csrf
     </form>
+    <form method="POST" action="{{ route('videos.showcase.clear') }}" id="clearForm" style="display:none;" onsubmit="return confirm('Vitrininizdeki tüm videoları kaldırmak istediğinize emin misiniz?');">
+        @csrf
+    </form>
+
+    <!-- Tekil Video Kaldırma Formları -->
+    @foreach($videos as $vForm)
+        <form method="POST" action="{{ route('videos.showcase.remove', $vForm->id) }}" id="removeForm{{ $vForm->id }}" style="display:none;" onsubmit="return confirm('“{{ addslashes($vForm->title) }}” videosunu vitrinden kaldırmak istediğinize emin misiniz?');">
+            @csrf
+            @method('DELETE')
+        </form>
+    @endforeach
 
     @if($videos->isEmpty())
         <!-- Henüz Video Çekilmemişse Aksiyon Kartı -->
@@ -59,53 +70,68 @@
                     </span>
                     <span id="selHint" class="muted" style="font-size:13px;">
                         @if(count($selectedIds) === 0)
-                            (En az 1, en fazla 3 video seçebilirsiniz)
+                            (Seçim yapılmadı — kaydedilirse vitrin boşaltılır)
                         @elseif(count($selectedIds) === 3)
-                            (Maksimum limite ulaşıldı)
+                            (Maksimum vitrin sınırına ulaştınız: 3/3)
                         @else
                             ({{ 3 - count($selectedIds) }} video daha seçebilirsiniz)
                         @endif
                     </span>
                 </div>
-                <div style="display:flex;gap:12px;align-items:center;">
+                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                     <button type="submit" form="syncForm" style="background:transparent;border:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;padding:6px 0;">
                         🔄 Son Videoları Yeniden Tara
                     </button>
-                    <button class="btn" type="submit" id="saveShowcaseBtn" @disabled(count($selectedIds) === 0)>Vitrini Kaydet</button>
+                    @if(count($selectedIds) > 0)
+                        <button type="submit" form="clearForm" style="background:transparent;border:none;color:#c93b2b;font-size:13px;text-decoration:underline;cursor:pointer;padding:6px 0;">
+                            🗑️ Vitrini Sıfırla
+                        </button>
+                    @endif
+                    <button class="btn" type="submit" id="saveShowcaseBtn">{{ count($selectedIds) === 0 ? 'Vitrini Boşalt ve Kaydet' : 'Vitrini Kaydet' }}</button>
                 </div>
             </div>
 
             <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;">
                 @foreach($videos as $video)
                 @php $checked = in_array($video->id, $selectedIds, true); @endphp
-                <label for="v{{ $video->id }}" class="video-card {{ $checked ? 'selected' : '' }}" style="cursor:pointer;display:block;border-radius:14px;border:2px solid {{ $checked ? 'var(--rust)' : 'var(--line)' }};background:var(--cream);overflow:hidden;transition:border-color .15s,box-shadow .15s;">
-                    <div style="position:relative;">
-                        @if($video->thumbnail_url)
-                            <img src="{{ $video->thumbnail_url }}" alt="{{ $video->title }}" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;">
-                        @else
-                            <div style="width:100%;aspect-ratio:16/9;background:var(--sand);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:32px;">▶</div>
-                        @endif
-                        <div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);border-radius:6px;padding:4px;line-height:1;">
-                            <input type="checkbox"
-                                name="video_ids[]"
-                                id="v{{ $video->id }}"
-                                value="{{ $video->id }}"
-                                {{ $checked ? 'checked' : '' }}
-                                style="width:20px;height:20px;accent-color:var(--rust);cursor:pointer;display:block;">
+                <div class="video-card-container" style="display:flex;flex-direction:column;border-radius:14px;border:2px solid {{ $checked ? 'var(--rust)' : 'var(--line)' }};background:var(--cream);overflow:hidden;transition:border-color .15s,box-shadow .15s;">
+                    <label for="v{{ $video->id }}" class="video-card {{ $checked ? 'selected' : '' }}" style="cursor:pointer;display:block;flex:1;">
+                        <div style="position:relative;">
+                            @if($video->thumbnail_url)
+                                <img src="{{ $video->thumbnail_url }}" alt="{{ $video->title }}" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;">
+                            @else
+                                <div style="width:100%;aspect-ratio:16/9;background:var(--sand);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:32px;">▶</div>
+                            @endif
+                            <div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);border-radius:6px;padding:4px;line-height:1;">
+                                <input type="checkbox"
+                                    name="video_ids[]"
+                                    id="v{{ $video->id }}"
+                                    value="{{ $video->id }}"
+                                    {{ $checked ? 'checked' : '' }}
+                                    style="width:20px;height:20px;accent-color:var(--rust);cursor:pointer;display:block;">
+                            </div>
                         </div>
-                    </div>
-                    <div style="padding:14px;">
-                        <div style="font-weight:600;font-size:14px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{{ $video->title }}</div>
-                        @if($video->published_at)
-                            <div class="muted" style="margin-top:6px;font-size:12px;">{{ $video->published_at->diffForHumans() }}</div>
-                        @endif
-                    </div>
-                </label>
+                        <div style="padding:14px;">
+                            <div style="font-weight:600;font-size:14px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{{ $video->title }}</div>
+                            @if($video->published_at)
+                                <div class="muted" style="margin-top:6px;font-size:12px;">{{ $video->published_at->diffForHumans() }}</div>
+                            @endif
+                        </div>
+                    </label>
+
+                    @if($checked)
+                        <div style="padding:0 14px 14px;border-top:1px dashed var(--line);background:#fff9f8;">
+                            <button type="submit" form="removeForm{{ $video->id }}" class="btn secondary" style="width:100%;padding:7px 10px;font-size:12px;color:#c93b2b;background:#fff5f3;border-color:#f5c6cb;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;" title="Bu videoyu doğrudan vitrinden kaldır">
+                                <span>✕ Vitrinden Kaldır</span>
+                            </button>
+                        </div>
+                    @endif
+                </div>
                 @endforeach
             </div>
 
             <div style="margin-top:24px;display:flex;gap:12px;align-items:center;">
-                <button class="btn" type="submit" id="saveShowcaseBtn2" @disabled(count($selectedIds) === 0)>Vitrini Kaydet</button>
+                <button class="btn" type="submit" id="saveShowcaseBtn2">{{ count($selectedIds) === 0 ? 'Vitrini Boşalt ve Kaydet' : 'Vitrini Kaydet' }}</button>
                 <a href="{{ route('dashboard') }}" class="btn secondary">Panoya Dön</a>
             </div>
         </form>
@@ -142,7 +168,7 @@
 
                 if(hintEl) {
                     if (n === 0) {
-                        hintEl.textContent = '(En az 1, en fazla 3 video seçmelisiniz)';
+                        hintEl.textContent = '(Seçim yapılmadı — kaydedilirse vitrin boşaltılır)';
                     } else if (n === MAX) {
                         hintEl.textContent = '(Maksimum vitrin sınırına ulaştınız: 3/3)';
                     } else {
@@ -151,18 +177,23 @@
                 }
 
                 saveBtns.forEach(btn => {
-                    if (btn) btn.disabled = (n === 0 || n > MAX);
+                    if (btn) {
+                        btn.disabled = (n > MAX);
+                        btn.textContent = (n === 0 ? 'Vitrini Boşalt ve Kaydet' : 'Vitrini Kaydet (' + n + '/3)');
+                    }
                 });
 
                 boxes.forEach(cb => {
-                    const card = cb.closest('label');
-                    if(cb.checked){
-                        card.style.borderColor = 'var(--rust)';
-                        card.style.boxShadow = '0 0 0 3px rgba(173,101,72,.18)';
-                    } else {
-                        card.style.borderColor = 'var(--line)';
-                        card.style.boxShadow = '';
-                        card.style.opacity = cb.disabled ? '0.5' : '1';
+                    const card = cb.closest('.video-card-container') || cb.closest('label');
+                    if(card){
+                        if(cb.checked){
+                            card.style.borderColor = 'var(--rust)';
+                            card.style.boxShadow = '0 0 0 3px rgba(173,101,72,.18)';
+                        } else {
+                            card.style.borderColor = 'var(--line)';
+                            card.style.boxShadow = '';
+                            card.style.opacity = cb.disabled ? '0.5' : '1';
+                        }
                     }
                     if(!cb.checked) cb.disabled = (n >= MAX);
                 });
