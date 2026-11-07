@@ -154,6 +154,7 @@ class GoogleAuthController extends Controller
                             collect($data)->except(['subscriber_count', 'view_count'])->all() + ['last_synced_at' => now()]
                         );
                     }
+                    $user->update(['google_channel_ids' => $available->pluck('youtube_channel_id')->all()]);
                 }
 
                 if ($accessToken) {
