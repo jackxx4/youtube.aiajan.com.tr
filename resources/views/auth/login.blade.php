@@ -20,7 +20,13 @@
         <span id="google-login-text">Google ile devam et</span>
     </button>
 
-    <div style="margin-top:16px;">
+    <div style="margin-top:14px;">
+        <button id="redirect-login-link" type="button" style="background:transparent;border:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;">
+            Pencere açılmıyorsa aynı sekmede devam et
+        </button>
+    </div>
+
+    <div style="margin-top:14px;">
         <span class="muted">AIAjan ekosistemi güvencesiyle tek tıkla bağlan</span>
     </div>
 
@@ -29,10 +35,10 @@
     </p>
 </div>
 
-<!-- Firebase Google Auth Entegrasyonu -->
+<!-- Firebase Google Auth Entegrasyonu (Akıllı Hibrit: Pop-up + Otomatik Redirect) -->
 <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
     const firebaseConfig = {
         apiKey: "{{ config('services.firebase.api_key', 'AIzaSyASQDjjn7zkLDjDmKkPwXAzMoK7fZdoFYA') }}",
@@ -52,6 +58,7 @@
 
     const btn = document.getElementById('google-login-btn');
     const btnText = document.getElementById('google-login-text');
+    const redirectLink = document.getElementById('redirect-login-link');
     const alertBox = document.getElementById('login-alert');
 
     function showAlert(msg, isError = true) {
@@ -60,7 +67,52 @@
         alertBox.textContent = msg;
     }
 
-    async function handleGoogleLogin() {
+    async function processAuthResult(res) {
+        btnText.textContent = 'Oturum doğrulanıyor...';
+        const user = res.user;
+        const idToken = await user.getIdToken();
+        const credential = GoogleAuthProvider.credentialFromResult(res);
+        const accessToken = credential ? credential.accessToken : '';
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const resp = await fetch("{{ route('auth.firebase.callback') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken || '',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                idToken: idToken,
+                accessToken: accessToken
+            })
+        });
+
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+            btnText.textContent = 'Giriş başarılı! Yönlendiriliyorsunuz...';
+            window.location.href = data.redirect || "{{ route('dashboard') }}";
+        } else {
+            showAlert(data.message || 'Giriş doğrulanamadı.');
+            btn.disabled = false;
+            btnText.textContent = 'Google ile devam et';
+        }
+    }
+
+    // 1. Redirect dönüş kontrolü (Aynı sekmede oturum açılmışsa yakala)
+    try {
+        const redirectRes = await getRedirectResult(auth);
+        if (redirectRes && redirectRes.user) {
+            btn.disabled = true;
+            await processAuthResult(redirectRes);
+        }
+    } catch (e) {
+        console.error(e);
+        showAlert('Yönlendirme ile giriş tamamlanamadı: ' + (e.message || e.code));
+    }
+
+    // 2. Pop-up ile giriş (Masaüstü için varsayılan)
+    async function handleGooglePopup() {
         if (!btn) return;
         btn.disabled = true;
         btnText.textContent = 'Google ile bağlanılıyor...';
@@ -68,54 +120,38 @@
 
         try {
             const res = await signInWithPopup(auth, provider);
-            const user = res.user;
-            const idToken = await user.getIdToken();
-            const credential = GoogleAuthProvider.credentialFromResult(res);
-            const accessToken = credential ? credential.accessToken : '';
-
-            btnText.textContent = 'Oturum doğrulanıyor...';
-
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            const resp = await fetch("{{ route('auth.firebase.callback') }}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken || '',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    idToken: idToken,
-                    accessToken: accessToken
-                })
-            });
-
-            const data = await resp.json();
-            if (resp.ok && data.success) {
-                btnText.textContent = 'Giriş başarılı! Yönlendiriliyorsunuz...';
-                window.location.href = data.redirect || "{{ route('dashboard') }}";
-            } else {
-                showAlert(data.message || 'Giriş doğrulanamadı.');
-                btn.disabled = false;
-                btnText.textContent = 'Google ile devam et';
-            }
+            await processAuthResult(res);
         } catch (e) {
             console.error(e);
             if (e.code === 'auth/popup-blocked') {
-                showAlert('Açılır pencere tarayıcınız tarafından engellendi. Lütfen tarayıcı adres çubuğundan pop-up izni verin.');
+                showAlert('Açılır pencere tarayıcınız tarafından engellendi. Aynı sekmede yönlendiriliyorsunuz...');
+                setTimeout(() => { signInWithRedirect(auth, provider); }, 800);
             } else if (e.code !== 'auth/popup-closed-by-user') {
                 showAlert('Giriş başarısız oldu: ' + (e.message || e.code));
+                btn.disabled = false;
+                btnText.textContent = 'Google ile devam et';
+            } else {
+                btn.disabled = false;
+                btnText.textContent = 'Google ile devam et';
             }
-            btn.disabled = false;
-            btnText.textContent = 'Google ile devam et';
         }
     }
 
-    btn?.addEventListener('click', handleGoogleLogin);
+    // 3. Aynı sekmede yönlendirme (İsteğe bağlı veya mobil için alternatif)
+    function handleGoogleRedirect() {
+        if (!btn) return;
+        btn.disabled = true;
+        btnText.textContent = 'Google sayfasına yönlendiriliyorsunuz...';
+        signInWithRedirect(auth, provider);
+    }
 
-    // Otomatik tetikleme (Örn: /giris?auto=google parametresi geldiğinde)
+    btn?.addEventListener('click', handleGooglePopup);
+    redirectLink?.addEventListener('click', handleGoogleRedirect);
+
+    // Otomatik tetikleme parametresi
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('auto') === 'google') {
-        setTimeout(handleGoogleLogin, 400);
+        setTimeout(handleGooglePopup, 400);
     }
 </script>
 @endsection
