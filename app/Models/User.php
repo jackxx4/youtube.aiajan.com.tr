@@ -10,7 +10,7 @@ class User extends Authenticatable {
  protected $fillable=['google_sub','name','email','username','avatar_url','role','status'];
  protected $hidden=['password','remember_token'];
  protected function casts(): array {return ['email_verified_at'=>'datetime','password'=>'hashed'];}
- public function activeChannelLink(): HasOne {return $this->hasOne(UserChannelLink::class)->whereNull('ended_at')->latestOfMany();}
+ public function activeChannelLink(): HasOne {return $this->hasOne(UserChannelLink::class)->whereNull('ended_at')->latestOfMany('id');}
  public function channelLinks(): HasMany {return $this->hasMany(UserChannelLink::class);}
  public function oauthToken(): HasOne {return $this->hasOne(YouTubeOAuthToken::class);}
  public function supporterStatuses(): HasMany {return $this->hasMany(SupporterStatus::class);}
