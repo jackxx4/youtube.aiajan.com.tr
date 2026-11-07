@@ -3,10 +3,29 @@ namespace App\Console\Commands;
 use App\Models\UserChannelLink; use App\Models\Video;
 use App\Models\YouTubeMetricMonthly;
 use Google\Client as GoogleClient; use Google\Service\YouTube;
-use Illuminate\Console\Command; use Illuminate\Support\Facades\Crypt; use Throwable;
+use Illuminate\Console\Command; use Illuminate\Support\Facades\Crypt;
+use Symfony\Component\Process\Process; use Throwable;
+
 class SyncYouTubeChannels extends Command {
  protected $signature='youtube:sync-channels'; protected $description='Bağlı kanalların son üç videosunu ve kanal istatistiklerini yeniler.';
+
  public function handle(): int {
+  $rustBin = base_path('bin/youtube-sync');
+  $rustExe = base_path('bin/youtube-sync.exe');
+  $bin = file_exists($rustBin) ? $rustBin : (file_exists($rustExe) ? $rustExe : null);
+
+  if ($bin && is_executable($bin)) {
+   $this->info('🦀 Yüksek performanslı Rust motoru çalıştırılıyor: '.$bin);
+   $process = new Process([$bin], base_path(), null, null, 120);
+   $process->run(function ($type, $buffer) {
+    $this->output->write($buffer);
+   });
+   if ($process->isSuccessful()) {
+    return self::SUCCESS;
+   }
+   $this->warn('Rust motoru başarısız oldu, PHP yedeğine geçiliyor...');
+  }
+
   $links=UserChannelLink::with(['user.oauthToken','channel'])->whereNull('ended_at')->get();
   foreach($links as $link) {
    try {
@@ -27,10 +46,13 @@ class SyncYouTubeChannels extends Command {
     YouTubeMetricMonthly::updateOrCreate(['youtube_channel_id'=>$link->channel->id,'metric_month'=>now()->startOfMonth()->toDateString()],['subscriber_count'=>$stats?->getSubscriberCount(),'view_count'=>$stats?->getViewCount(),'collected_at'=>now()]);
     $uploads=$details?->getRelatedPlaylists()?->getUploads();if(!$uploads)continue;
     $playlist=$yt->playlistItems->listPlaylistItems('snippet,contentDetails',['playlistId'=>$uploads,'maxResults'=>3]);
+    $videoIds=[];
     foreach($playlist->getItems() as $entry) {
      $snippet=$entry->getSnippet();$video=$entry->getContentDetails();$id=$video?->getVideoId();if(!$id)continue;
+     $videoIds[]=$id;
      Video::updateOrCreate(['youtube_video_id'=>$id],['youtube_channel_id'=>$link->channel->id,'title'=>$snippet?->getTitle()??'YouTube Videosu','thumbnail_url'=>$snippet?->getThumbnails()?->getMedium()?->getUrl(),'published_at'=>$video?->getVideoPublishedAt(),'availability'=>'available','last_checked_at'=>now()]);
     }
+    Video::where('youtube_channel_id',$link->channel->id)->whereNotIn('youtube_video_id',$videoIds)->where('availability','available')->update(['availability'=>'unavailable','last_checked_at'=>now()]);
     $this->line('Senkronize edildi: '.$link->channel->title);
    } catch(Throwable $e) {report($e);$this->warn('Kanal senkronizasyonu başarısız: '.$link->channel?->youtube_channel_id);}
   }

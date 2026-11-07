@@ -5,13 +5,16 @@ YouTube içerik üreticileri için kanal keşfi ve platform içi topluluk uygula
 ## Teknoloji
 - Laravel 13
 - PHP 8.3+
-- MySQL 8+
+- MySQL 8+ / MariaDB 10.11+
+- Rust 2021 (Yüksek hızlı asenkron arka plan senkronizasyon motoru — `crates/youtube-sync`)
 - Laravel Socialite (Google OAuth 2.0)
 - Google API PHP Client (YouTube Data API v3)
 - Blade arayüzü
 
 ## Kurulum
 Ayrıntılı Plesk ve Google OAuth kurulum adımları: docs/LARAVEL_SETUP.md
+
+Üretim dağıtım betiği ve Plesk veritabanı notları: docs/DEPLOYMENT.md
 
 Temel komutlar:
 ~~~bash
@@ -34,7 +37,8 @@ Plesk'te alan adının Document Root değeri Laravel projesindeki public/ klasö
 - Günlük toplam 6 platform takip sınırı (normal 3 + destekçi 3)
 - Video keşfi (isteğe bağlı, standart YouTube embed kontrolleri)
 - Admin özet ekranı
-- YouTube kanal ve son 3 video senkronizasyon komutu
+- YouTube kanal ve son 3 video senkronizasyon komutu (Rust öncelikli, otomatik PHP yedeklemeli)
+- Rust YouTube Sync Motoru (`crates/youtube-sync`): Tokio ve reqwest ile sıfır bellek tüketimli paralel API çekimi
 - Destekçi süresi bitirme komutu
 
 ## API bilgileri
