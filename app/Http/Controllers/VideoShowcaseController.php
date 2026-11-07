@@ -169,8 +169,14 @@ class VideoShowcaseController extends Controller
         $videoIds = [];
         if ($html) {
             preg_match_all('/"videoId":"([a-zA-Z0-9_-]{11})"/', $html, $matches);
+            // Shorts video ID'lerini tespit edip listeden çıkar
+            preg_match_all('#/shorts/([a-zA-Z0-9_-]{11})#', $html, $shortsMatches);
+            $shortsIds = array_flip($shortsMatches[1] ?? []);
             if (!empty($matches[1])) {
-                $videoIds = array_unique($matches[1]);
+                $videoIds = array_values(array_filter(
+                    array_unique($matches[1]),
+                    fn($id) => !isset($shortsIds[$id])
+                ));
             }
         }
 
@@ -228,6 +234,11 @@ class VideoShowcaseController extends Controller
 
         if (!$channel) {
             return back()->withErrors(['video_url' => 'Bağlı bir kanalınız bulunamadı.']);
+        }
+
+        // Shorts URL'ini reddet
+        if (str_contains($url, '/shorts/')) {
+            return back()->withErrors(['video_url' => 'YouTube Shorts videoları eklenemez. Yalnızca normal (yatay) videolar kabul edilir.'])->withInput();
         }
 
         $videoId = null;
