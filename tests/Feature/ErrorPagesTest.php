@@ -15,3 +15,4 @@ class ErrorPagesTest extends TestCase
         $response->assertSee('Ana Sayfaya Dön');
     }
 }
+

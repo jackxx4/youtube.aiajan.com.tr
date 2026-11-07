@@ -65,3 +65,4 @@ class AdminDashboardTest extends TestCase
         $this->assertEquals('admin', $targetUser->fresh()->role);
     }
 }
+
