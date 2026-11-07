@@ -66,5 +66,10 @@ Route::middleware('auth')->group(function(){
  Route::post('/vitrenim/sifirla',[VideoShowcaseController::class,'clearAll'])->name('videos.showcase.clear');
  Route::post('/vitrenim/senkronize',[VideoShowcaseController::class,'syncChannelVideos'])->name('videos.showcase.sync');
  Route::post('/vitrenim/video-ekle',[VideoShowcaseController::class,'addVideoByUrl'])->name('videos.showcase.add_url');
- Route::prefix('yonetim')->name('admin.')->middleware('admin')->group(function(){Route::get('/',AdminDashboardController::class)->name('dashboard');});
+ Route::prefix('yonetim')->name('admin.')->middleware('admin')->group(function () {
+     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+     Route::post('/kullanici/{user}/rol', [AdminDashboardController::class, 'toggleRole'])->name('users.toggle_role');
+     Route::post('/kullanici/{user}/durum', [AdminDashboardController::class, 'toggleStatus'])->name('users.toggle_status');
+     Route::post('/onbellek-temizle', [AdminDashboardController::class, 'clearCache'])->name('clear_cache');
+ });
 });

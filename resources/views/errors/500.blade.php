@@ -1,0 +1,6 @@
+@extends('errors.layout')
+@section('title', '500 - Sunucu Hatası')
+@section('badge', 'Sistem Aksaklığı')
+@section('code', '500')
+@section('headline', 'Geçici Bir Sunucu Aksaklığı Oluştu')
+@section('message', 'İşleminiz gerçekleştirilirken beklenmeyen bir teknik aksaklık meydana geldi. Durum sistem günlüklerimize kaydedilmiştir. Lütfen sayfayı tazeleyin veya biraz sonra tekrar deneyin.')

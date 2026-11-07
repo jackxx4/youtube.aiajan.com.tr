@@ -1,0 +1,6 @@
+@extends('errors.layout')
+@section('title', '503 - Bakım Modu')
+@section('badge', 'Planlı Bakım')
+@section('code', '503')
+@section('headline', 'Sistemimiz Şu Anda Bakımdadır')
+@section('message', 'Platformumuzun performans ve güvenlik standartlarını yükseltmek amacıyla planlı bir altyapı çalışması yürütülmektedir. En kısa sürede tekrar yayında olacağız.')
