@@ -60,4 +60,18 @@ class DiscoveryController extends Controller {
   }
   return view('discovery.videos',compact('videos','selected'));
  }
+
+ public function selectVideos(Request $request): RedirectResponse {
+  $data = $request->validate([
+   'video_ids'   => ['required', 'array', 'min:1', 'max:5'],
+   'video_ids.*' => ['integer', 'exists:videos,id'],
+  ]);
+  session(['selected_video_ids' => $data['video_ids']]);
+  return redirect()->route('discovery.videos');
+ }
+
+ public function resetVideos(): RedirectResponse {
+  session()->forget('selected_video_ids');
+  return redirect()->route('discovery.videos');
+ }
 }
