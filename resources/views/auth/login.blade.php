@@ -30,6 +30,14 @@
         <span class="muted">AIAjan ekosistemi güvencesiyle tek tıkla bağlan</span>
     </div>
 
+    <!-- Giriş Kolaylığı Rehberi -->
+    <div style="margin-top:18px;padding:12px 14px;background:#f5ede3;border-radius:10px;border:1px solid #e3d3c2;font-size:12px;color:#6b5247;text-align:left;line-height:1.55;">
+        <div style="font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:4px;color:var(--wine);">
+            <span>⚡</span> <span>Hızlı ve Güvenli Giriş:</span>
+        </div>
+        Google hesabınızla tek tıkla oturum açın. Giriş sonrasında YouTube kanalınızı (kullanıcı adı veya bağlantı ile) profilinize kolayca bağlayabilirsiniz.
+    </div>
+
     <p class="foot">
         Google OAuth izinleri açıkça gösterilir. Şifre bilgilerin platformda tutulmaz.
     </p>
@@ -53,7 +61,6 @@
     provider.addScope('openid');
     provider.addScope('email');
     provider.addScope('profile');
-    provider.addScope('https://www.googleapis.com/auth/youtube.readonly');
     provider.setCustomParameters({ prompt: 'select_account' });
 
     const btn = document.getElementById('google-login-btn');
@@ -126,6 +133,10 @@
             if (e.code === 'auth/popup-blocked') {
                 showAlert('Açılır pencere tarayıcınız tarafından engellendi. Aynı sekmede yönlendiriliyorsunuz...');
                 setTimeout(() => { signInWithRedirect(auth, provider); }, 800);
+            } else if (e.code === 'auth/unauthorized-domain') {
+                showAlert('Firebase yetkilendirme hatası: youtube.aiajan.com.tr alan adı Firebase Console > Authentication > Settings > Authorized Domains listesine eklenmelidir.');
+                btn.disabled = false;
+                btnText.textContent = 'Google ile devam et';
             } else if (e.code !== 'auth/popup-closed-by-user') {
                 showAlert('Giriş başarısız oldu: ' + (e.message || e.code));
                 btn.disabled = false;
