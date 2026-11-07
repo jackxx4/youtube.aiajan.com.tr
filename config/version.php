@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'current' => '1.6.2',
-    'release_name' => '10 Video Arasından 3 Seçim ve Müstakil Yönetici Giriş Portalı',
-    'updated_at' => '2026-11-07T22:00:00',
+    'current' => '1.6.3',
+    'release_name' => 'Tek Parça Profil, 10 Kanal/Video Seçimi ve Çoklu Kanal Keşif Havuzu',
+    'updated_at' => '2026-11-07T22:30:00',
 ];

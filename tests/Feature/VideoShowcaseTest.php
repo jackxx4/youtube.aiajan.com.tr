@@ -138,5 +138,37 @@ class VideoShowcaseTest extends TestCase
         $response->assertRedirect(route('videos.showcase'));
         $this->assertEquals(0, UserVideoSelection::where('user_id', $this->user->id)->count());
     }
+
+    public function test_user_can_view_showcase_page_with_latest_videos(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->get(route('videos.showcase'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Video Vitrinim');
+        $response->assertSee('Kanalınızın Son Videoları');
+        $response->assertSee('Video 1');
+        $response->assertSee('Video 2');
+        $response->assertSee('Video 3');
+        $response->assertSee('Video 4');
+        $response->assertSee('💾 Vitrini Kaydet');
+    }
+
+    public function test_user_can_select_3_videos_via_form_update(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->post(route('videos.showcase.update'), [
+                'video_ids' => [$this->video1->id, $this->video2->id, $this->video3->id],
+            ]);
+
+        $response->assertRedirect(route('videos.showcase'));
+        $response->assertSessionHas('status');
+
+        $selected = UserVideoSelection::where('user_id', $this->user->id)->pluck('video_id')->all();
+        $this->assertCount(3, $selected);
+        $this->assertContains($this->video1->id, $selected);
+        $this->assertContains($this->video2->id, $selected);
+        $this->assertContains($this->video3->id, $selected);
+    }
 }
 

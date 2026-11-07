@@ -18,7 +18,7 @@ class ProfileTest extends TestCase
         $response->assertRedirect('/giris');
     }
 
-    public function test_authenticated_user_can_view_profile(): void
+    public function test_authenticated_user_is_redirected_from_profile_to_dashboard(): void
     {
         $user = User::create([
             'name' => 'Deneme Kullanıcı',
@@ -29,9 +29,12 @@ class ProfileTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)->get('/profil');
-        $response->assertStatus(200);
-        $response->assertSee('Deneme Kullanıcı');
-        $response->assertSee('@denemekullanici');
+        $response->assertRedirect(route('dashboard'));
+
+        $dashResponse = $this->actingAs($user)->get('/dashboard');
+        $dashResponse->assertStatus(200);
+        $dashResponse->assertSee('Deneme Kullanıcı');
+        $dashResponse->assertSee('@denemekullanici');
     }
 
     public function test_user_can_link_channel_from_profile_without_403(): void
@@ -64,6 +67,14 @@ class ProfileTest extends TestCase
 
     public function test_public_user_profile_is_accessible(): void
     {
+        $viewer = User::create([
+            'name' => 'İzleyici',
+            'email' => 'izleyici@example.com',
+            'username' => 'izleyici',
+            'google_sub' => 'sub_view_1',
+            'status' => 'active',
+        ]);
+
         $user = User::create([
             'name' => 'Halka Açık Üretici',
             'email' => 'halka@example.com',
@@ -72,8 +83,9 @@ class ProfileTest extends TestCase
             'status' => 'active',
         ]);
 
-        $response = $this->actingAs($user)->get('/kullanici/halkauye');
+        $response = $this->actingAs($viewer)->get('/kullanici/halkauye');
         $response->assertStatus(200);
         $response->assertSee('Halka Açık Üretici');
     }
 }
+
