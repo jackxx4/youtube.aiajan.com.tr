@@ -3,65 +3,55 @@
 
 @section('content')
 <div>
-    <!-- Başlık Bölümü -->
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:28px;">
+    <!-- Başlık ve Hızlı Eylemler -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
         <div>
             <div style="font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--accent-rust);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">
                 Yönetici Kontrol Merkezi
             </div>
-            <h1 style="font:32px 'DM Serif Display',serif;color:#fff;margin:0 0 6px;">Platform Yönetimi</h1>
-            <p style="color:var(--text-muted);font-size:13px;margin:0;max-width:680px;">
-                Sistem telemetrisini, YouTube kanallarını, vitrin durumunu ve gelen destek taleplerini canlı izleyin.
+            <h1 style="font:30px 'DM Serif Display',serif;color:#fff;margin:0 0 4px;">Platform Yönetimi</h1>
+            <p style="color:var(--text-muted);font-size:13px;margin:0;">
+                Platformdaki üyeleri, kanalları, kullanıcıların vitrine koyduğu videoları ve destek taleplerini izleyin.
             </p>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <a href="{{ route('admin.users') }}" class="btn-admin btn-admin-primary">
-                <span>👥 Üye Yönetimi ({{ $totalUsers }}) →</span>
+            <a href="{{ route('admin.showcase_videos') }}" class="btn-admin btn-admin-primary">
+                <span>✨ Vitrin Videoları ({{ $totalShowcaseVideos }})</span>
             </a>
-            <form method="POST" action="{{ route('admin.clear_cache') }}" onsubmit="return confirm('Sistem önbelleklerini temizlemek istediğinize emin misiniz?');">
-                @csrf
-                <button type="submit" class="btn-admin btn-admin-secondary">
-                    <span>🧹 Önbellek Temizle</span>
-                </button>
-            </form>
+            <a href="{{ route('admin.channels') }}" class="btn-admin btn-admin-secondary">
+                <span>📺 Kanal Yönetimi ({{ $totalChannels }})</span>
+            </a>
+            <a href="{{ route('admin.admins') }}" class="btn-admin btn-admin-secondary">
+                <span>🛡️ Yöneticiler ({{ $totalAdmins }})</span>
+            </a>
         </div>
-    </div>
-
-    <!-- Sistem ve Canlı Altyapı Barı -->
-    <div class="ui-card" style="padding:14px 20px;border-left:4px solid var(--accent-rust);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;background:var(--bg-surface-elevated);margin-bottom:24px;">
-        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:12px;">
-            <span><strong style="color:#fff;">Sürüm:</strong> v{{ $systemInfo['version'] }}</span>
-            <span style="color:var(--text-dim);">•</span>
-            <span><strong style="color:#fff;">PHP:</strong> {{ $systemInfo['php_version'] }}</span>
-            <span style="color:var(--text-dim);">•</span>
-            <span><strong style="color:#fff;">Laravel:</strong> v{{ $systemInfo['laravel_ver'] }}</span>
-            <span style="color:var(--text-dim);">•</span>
-            <span><strong style="color:#fff;">Veritabanı:</strong> {{ strtoupper($systemInfo['db_driver']) }}</span>
-            <span style="color:var(--text-dim);">•</span>
-            <span><strong style="color:#fff;">Ortam:</strong> <span style="background:var(--accent-rust-soft);color:#ff9b73;padding:2px 6px;border-radius:4px;font-weight:700;">{{ strtoupper($systemInfo['environment']) }}</span></span>
-        </div>
-        <span style="color:var(--status-ok);font-size:12px;font-weight:600;">🛡️ MIT Sıfır-Güven Aktif</span>
     </div>
 
     <!-- Metrik Kartları -->
     <div class="stats-grid">
-        <div class="stat-card">
+        <a href="{{ route('admin.users') }}" class="stat-card" style="display:block;">
             <div class="stat-label">Toplam Üye</div>
             <div class="stat-value">{{ $totalUsers }}</div>
             <div class="stat-meta">Bugün kaydolan: +{{ $usersToday }}</div>
-        </div>
+        </a>
 
-        <div class="stat-card">
+        <a href="{{ route('admin.channels') }}" class="stat-card" style="display:block;">
             <div class="stat-label">Bağlı YouTube Kanalı</div>
             <div class="stat-value" style="color:var(--accent-rust);">{{ $totalChannels }}</div>
             <div class="stat-meta">Kayıtlı video: {{ $totalVideos }}</div>
-        </div>
+        </a>
 
-        <div class="stat-card">
+        <a href="{{ route('admin.showcase_videos') }}" class="stat-card" style="display:block;">
             <div class="stat-label">Vitrindeki Videolar</div>
-            <div class="stat-value">{{ $totalShowcaseVideos }}</div>
+            <div class="stat-value" style="color:#ffbba1;">{{ $totalShowcaseVideos }}</div>
             <div class="stat-meta">Keşifte yayında olan</div>
-        </div>
+        </a>
+
+        <a href="{{ route('admin.admins') }}" class="stat-card" style="display:block;">
+            <div class="stat-label">Yöneticiler</div>
+            <div class="stat-value" style="color:var(--status-ok);">{{ $totalAdmins }}</div>
+            <div class="stat-meta">Müstakil Admin Hesabı</div>
+        </a>
 
         <div class="stat-card">
             <div class="stat-label">Platform Takipleri</div>
@@ -70,113 +60,117 @@
         </div>
 
         <div class="stat-card">
-            <div class="stat-label">Aktif Destekçi</div>
-            <div class="stat-value">{{ $activeSupporters }}</div>
-            <div class="stat-meta">Özel havuz üyeleri</div>
-        </div>
-
-        <div class="stat-card">
             <div class="stat-label">İletişim Talepleri</div>
             <div class="stat-value">{{ $totalMessages }}</div>
-            <div class="stat-meta">Gelen mesaj sayısı</div>
+            <div class="stat-meta">Gelen destek mesajı</div>
         </div>
     </div>
 
-    <!-- Hızlı Üye Yönetimi Çağrısı Kartı -->
-    <div class="ui-card" style="background:linear-gradient(135deg, var(--bg-surface-elevated) 0%, #201712 100%);border:1px solid var(--line-border);padding:24px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
-        <div>
-            <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--accent-rust);font-weight:700;text-transform:uppercase;letter-spacing:1px;">KULLANICI VERİTABANI</div>
-            <h2 style="font:22px 'DM Serif Display',serif;margin:4px 0 6px;color:#fff;">Kayıtlı Üyeleri ve Hesapları Yönetin ({{ $totalUsers }} Üye)</h2>
-            <p style="color:var(--text-muted);margin:0;max-width:640px;font-size:13px;">
-                Tüm kayıtlı üyeleri arayın, rollerini (Admin/Üye) belirleyin, durumlarını askıya alın veya üyeleri tüm verileriyle birlikte kalıcı olarak silin.
-            </p>
-        </div>
-        <a href="{{ route('admin.users') }}" class="btn-admin btn-admin-primary" style="padding:12px 22px;font-size:14px;">
-            <span>👥 Üye Yönetimini Aç →</span>
-        </a>
-    </div>
-
-    <!-- TABLO: Son Eklenen YouTube Kanalları -->
-    <section class="ui-card" id="kanallar">
+    <!-- TABLO 1: Vitrindeki Videolar (Kullanıcıların Ekledikleri) -->
+    <section class="ui-card" style="margin-bottom:28px;">
         <div class="ui-card-header">
             <div>
-                <div class="stat-label">KANAL VERİTABANI</div>
-                <h2 class="ui-card-title">Bağlı YouTube Kanalları</h2>
-                <div class="ui-card-subtitle">Sisteme bağlanmış son 10 YouTube kanalı listelenmektedir</div>
+                <div class="stat-label" style="color:var(--accent-rust);">KEŞİF HAVUZU</div>
+                <h2 class="ui-card-title">Vitrindeki Videolar (Kullanıcıların Ekledikleri)</h2>
+                <div class="ui-card-subtitle">Kullanıcıların kendi kanal veya hesaplarından havuza seçtiği son videolar</div>
             </div>
-            <span style="font-size:12px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">Toplam {{ $totalChannels }} kanal</span>
+            <div style="display:flex;gap:10px;align-items:center;">
+                <span style="font-size:12px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">Toplam {{ $totalShowcaseVideos }} video</span>
+                @if($totalShowcaseVideos > 0)
+                    <a href="{{ route('admin.showcase_videos') }}" class="btn-admin btn-admin-secondary" style="padding:5px 12px;font-size:12px;">
+                        Tümünü Gör →
+                    </a>
+                @endif
+            </div>
         </div>
 
-        <div class="table-responsive">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Kanal Adı</th>
-                        <th>Kanal ID / URL</th>
-                        <th>Kayıtlı Video</th>
-                        <th>Son Senkronizasyon</th>
-                        <th style="text-align:right;">İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($recentChannels as $ch)
-                    <tr>
-                        <td>
-                            <div style="display:flex;align-items:center;gap:12px;">
-                                @if($ch->thumbnail_url)
-                                    <img src="{{ $ch->thumbnail_url }}" alt="{{ $ch->title }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--line-border);">
-                                @else
-                                    <div style="width:36px;height:36px;border-radius:50%;background:var(--bg-surface-elevated);border:1px solid var(--line-border);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent-rust);">
-                                        {{ mb_substr($ch->title ?: 'Y', 0, 1) }}
-                                    </div>
-                                @endif
-                                <div>
-                                    <strong style="color:#fff;font-size:14px;">{{ $ch->title }}</strong>
-                                    @if($ch->subscriber_count)
-                                        <div style="font-size:11px;color:var(--text-muted);">{{ number_format($ch->subscriber_count) }} abone</div>
+        @if($recentShowcaseVideos->isEmpty())
+            <div style="padding:36px;text-align:center;color:var(--text-muted);font-size:13px;background:var(--bg-surface-elevated);border-radius:10px;border:1px dashed var(--line-subtle);">
+                <div style="font-size:24px;margin-bottom:6px;">✨</div>
+                <strong style="color:#fff;">Henüz Vitrine Eklenmiş Video Bulunmuyor</strong>
+                <p style="margin:4px 0 0;font-size:12px;">Kullanıcılar kanallarından video seçip onayladıkça burada ve keşif havuzunda listelenecektir.</p>
+            </div>
+        @else
+            <div class="table-responsive">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Video</th>
+                            <th>Ekleyen Kullanıcı</th>
+                            <th>Ait Olduğu Kanal</th>
+                            <th>Seçim Tarihi</th>
+                            <th style="text-align:right;">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($recentShowcaseVideos as $sel)
+                        <tr>
+                            <td>
+                                <div style="display:flex;align-items:center;gap:12px;">
+                                    @if($sel->video?->thumbnail_url)
+                                        <img src="{{ $sel->video->thumbnail_url }}" alt="{{ $sel->video->title }}" style="width:70px;aspect-ratio:16/9;border-radius:6px;object-fit:cover;border:1px solid var(--line-border);">
+                                    @else
+                                        <div style="width:70px;aspect-ratio:16/9;background:var(--bg-surface-elevated);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;">
+                                            🎬
+                                        </div>
                                     @endif
+                                    <div style="max-width:320px;">
+                                        <a href="https://www.youtube.com/watch?v={{ $sel->video?->youtube_video_id }}" target="_blank" rel="noopener noreferrer" style="color:#fff;font-weight:600;font-size:13px;line-height:1.35;text-decoration:none;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                                            {{ $sel->video?->title ?: 'Video #' . $sel->video_id }}
+                                        </a>
+                                        <div style="font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;margin-top:2px;">
+                                            ID: {{ $sel->video?->youtube_video_id }}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </td>
-                        <td style="color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:12px;">
-                            {{ $ch->custom_url ? $ch->custom_url : $ch->youtube_channel_id }}
-                        </td>
-                        <td>
-                            <span style="background:var(--bg-surface-elevated);border:1px solid var(--line-subtle);padding:3px 9px;border-radius:10px;font-weight:600;font-size:11px;color:#fff;">
-                                {{ $ch->videos_count }} video
-                            </span>
-                        </td>
-                        <td style="color:var(--text-muted);font-size:12px;">
-                            {{ $ch->last_synced_at ? \Carbon\Carbon::parse($ch->last_synced_at)->diffForHumans() : '—' }}
-                        </td>
-                        <td style="text-align:right;white-space:nowrap;">
-                            <div style="display:inline-flex;gap:8px;align-items:center;">
-                                <a href="https://www.youtube.com/{{ $ch->custom_url ? ltrim($ch->custom_url, '/') : 'channel/' . $ch->youtube_channel_id }}" target="_blank" rel="noopener noreferrer" class="btn-admin btn-admin-secondary" style="padding:6px 12px;font-size:11px;">
-                                    YouTube ↗
-                                </a>
-                                <form method="POST" action="{{ route('admin.channels.destroy', $ch->id) }}" style="display:inline;" onsubmit="return confirm('“{{ addslashes($ch->title ?: $ch->youtube_channel_id) }}” kanalını ve bu kanala ait tüm videoları platformdan kalıcı olarak silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz!');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn-admin btn-admin-danger" style="padding:6px 12px;font-size:11px;" title="Kanalı Kalıcı Olarak Sil">
-                                        🗑️ Kanalı Sil
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="5" style="padding:32px;text-align:center;color:var(--text-muted);">
-                            Henüz sisteme bağlı bir YouTube kanalı bulunmuyor.
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                            </td>
+                            <td>
+                                @if($sel->user)
+                                    <div>
+                                        <a href="{{ route('profile.show', $sel->user->username) }}" target="_blank" style="color:var(--text-main);font-weight:600;text-decoration:underline;">
+                                            {{ $sel->user->name }}
+                                        </a>
+                                        <div style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">{{ $sel->user->email }}</div>
+                                    </div>
+                                @else
+                                    <span style="color:var(--text-dim);">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($sel->video?->channel)
+                                    <span style="color:var(--accent-rust);font-weight:600;">
+                                        📺 {{ Str::limit($sel->video->channel->title, 22) }}
+                                    </span>
+                                @else
+                                    <span style="color:var(--text-dim);">—</span>
+                                @endif
+                            </td>
+                            <td style="color:var(--text-muted);font-size:12px;font-family:'JetBrains Mono',monospace;white-space:nowrap;">
+                                {{ $sel->created_at ? \Carbon\Carbon::parse($sel->created_at)->diffForHumans() : '—' }}
+                            </td>
+                            <td style="text-align:right;white-space:nowrap;">
+                                <div style="display:inline-flex;gap:6px;align-items:center;">
+                                    <a href="https://www.youtube.com/watch?v={{ $sel->video?->youtube_video_id }}" target="_blank" rel="noopener noreferrer" class="btn-admin btn-admin-secondary" style="padding:5px 9px;font-size:11px;">
+                                        İzle ↗
+                                    </a>
+                                    <form method="POST" action="{{ route('admin.showcase_videos.destroy', $sel->id) }}" style="display:inline;" onsubmit="return confirm('Bu videoyu vitrinden kaldırmak istediğinize emin misiniz?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn-admin btn-admin-danger" style="padding:5px 9px;font-size:11px;" title="Vitrinden Kaldır">
+                                            🗑️ Vitrinden Kaldır
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </section>
 
-    <!-- TABLO: Son Gelen İletişim & Destek Talepleri -->
+    <!-- TABLO 2: Son Gelen İletişim & Destek Talepleri -->
     <section class="ui-card" id="talepler">
         <div class="ui-card-header">
             <div>
@@ -188,7 +182,7 @@
         </div>
 
         @if($recentMessages->isEmpty())
-            <div style="padding:32px;text-align:center;color:var(--text-muted);font-size:13px;">
+            <div style="padding:28px;text-align:center;color:var(--text-muted);font-size:13px;background:var(--bg-surface-elevated);border-radius:10px;">
                 Henüz iletişim formundan iletilmiş bir mesaj bulunmuyor.
             </div>
         @else

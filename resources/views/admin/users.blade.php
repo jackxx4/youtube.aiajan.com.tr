@@ -44,14 +44,7 @@
             <div style="flex:2;min-width:240px;">
                 <input type="text" name="search" value="{{ $search }}" class="admin-input" placeholder="İsim, kullanıcı adı veya e-posta ile ara..." style="margin:0;">
             </div>
-            <div style="min-width:140px;">
-                <select name="role" class="admin-input" style="margin:0;">
-                    <option value="">Tüm Roller</option>
-                    <option value="user" {{ $role === 'user' ? 'selected' : '' }}>Üye</option>
-                    <option value="admin" {{ $role === 'admin' ? 'selected' : '' }}>Yönetici</option>
-                </select>
-            </div>
-            <div style="min-width:140px;">
+            <div style="min-width:160px;">
                 <select name="status" class="admin-input" style="margin:0;">
                     <option value="">Tüm Durumlar</option>
                     <option value="active" {{ $status === 'active' ? 'selected' : '' }}>Aktif</option>
@@ -62,7 +55,7 @@
                 <button type="submit" class="btn-admin btn-admin-primary" style="padding:10px 18px;">
                     🔍 Filtrele
                 </button>
-                @if($search !== '' || $role || $status)
+                @if($search !== '' || $status)
                     <a href="{{ route('admin.users') }}" class="btn-admin btn-admin-secondary" style="padding:10px 16px;">
                         Temizle
                     </a>
@@ -93,7 +86,6 @@
                         <th>Kullanıcı</th>
                         <th>E-Posta</th>
                         <th>Bağlı Kanal</th>
-                        <th>Rol</th>
                         <th>Durum</th>
                         <th>Kayıt Tarihi</th>
                         <th style="text-align:right;">İşlemler</th>
@@ -141,13 +133,6 @@
                             @endif
                         </td>
                         <td>
-                            @if($u->role === 'admin')
-                                <span style="background:rgba(200, 90, 50, 0.2);color:#ff9b73;border:1px solid rgba(200, 90, 50, 0.4);padding:3px 8px;border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:700;">YÖNETİCİ</span>
-                            @else
-                                <span style="background:var(--bg-surface-elevated);color:var(--text-muted);border:1px solid var(--line-subtle);padding:3px 8px;border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;">ÜYE</span>
-                            @endif
-                        </td>
-                        <td>
                             @if($u->status === 'active')
                                 <span style="color:var(--status-ok);font-size:12px;font-weight:600;">● Aktif</span>
                             @else
@@ -159,14 +144,6 @@
                         </td>
                         <td style="text-align:right;white-space:nowrap;">
                             <div style="display:inline-flex;gap:6px;align-items:center;">
-                                <!-- Rol Değiştir -->
-                                <form method="POST" action="{{ route('admin.users.toggle_role', $u->id) }}" style="display:inline;">
-                                    @csrf
-                                    <button type="submit" class="btn-admin btn-admin-secondary" style="padding:5px 9px;font-size:11px;" title="Rolü değiştir">
-                                        {{ $u->role === 'admin' ? 'Üye Yap' : 'Admin Yap' }}
-                                    </button>
-                                </form>
-
                                 <!-- Askıya Al / Aktif Et -->
                                 <form method="POST" action="{{ route('admin.users.toggle_status', $u->id) }}" style="display:inline;">
                                     @csrf

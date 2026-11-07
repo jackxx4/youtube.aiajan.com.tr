@@ -547,6 +547,14 @@
                 <span class="icon">📺</span>
                 <span>Kanal Yönetimi</span>
             </a>
+            <a href="{{ route('admin.showcase_videos') }}" class="admin-nav-item {{ request()->routeIs('admin.showcase_videos*') ? 'active' : '' }}">
+                <span class="icon">✨</span>
+                <span>Vitrin Videoları</span>
+            </a>
+            <a href="{{ route('admin.admins') }}" class="admin-nav-item {{ request()->routeIs('admin.admins*') ? 'active' : '' }}">
+                <span class="icon">🛡️</span>
+                <span>Yöneticiler</span>
+            </a>
             <a href="{{ route('admin.dashboard') }}#talepler" class="admin-nav-item">
                 <span class="icon">💬</span>
                 <span>Destek Talepleri</span>

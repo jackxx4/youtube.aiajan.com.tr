@@ -63,30 +63,126 @@ class AdminDashboardTest extends TestCase
         $this->assertTrue(session('admin_authenticated'));
     }
 
-    public function test_admin_can_toggle_user_role(): void
+    public function test_admin_cannot_toggle_user_role_from_users_table(): void
     {
-        $admin = User::create([
-            'name' => 'Yönetici',
-            'email' => 'jackalxxxx4@gmail.com',
-            'username' => 'adminuser2',
-            'role' => 'admin',
-            'google_sub' => 'sub_adm_2',
-        ]);
+        $admin = \App\Models\Admin::firstOrCreate(
+            ['username' => 'emrah'],
+            [
+                'name'      => 'Emrah',
+                'email'     => 'emrah@aiajan.com.tr',
+                'password'  => Hash::make('985758'),
+                'role'      => 'super_admin',
+                'is_active' => true,
+            ]
+        );
 
         $targetUser = User::create([
-            'name' => 'Hedef Üye',
-            'email' => 'hedef@example.com',
-            'username' => 'targetuser',
-            'role' => 'user',
+            'name'       => 'Hedef Üye',
+            'email'      => 'hedef@example.com',
+            'username'   => 'targetuser',
+            'role'       => 'user',
             'google_sub' => 'sub_target_1',
         ]);
 
-        $response = $this->actingAs($admin)
-            ->withSession(['admin_authenticated' => true])
+        $response = $this->actingAs($admin, 'admin')
             ->post(route('admin.users.toggle_role', $targetUser->id));
 
-        $response->assertSessionHas('status');
-        $this->assertEquals('admin', $targetUser->fresh()->role);
+        $response->assertSessionHasErrors('admin');
+        $this->assertEquals('user', $targetUser->fresh()->role);
+    }
+
+    public function test_admin_can_manage_isolated_admins_crud(): void
+    {
+        $admin = \App\Models\Admin::firstOrCreate(
+            ['username' => 'emrah'],
+            [
+                'name'      => 'Emrah',
+                'email'     => 'emrah@aiajan.com.tr',
+                'password'  => Hash::make('985758'),
+                'role'      => 'super_admin',
+                'is_active' => true,
+            ]
+        );
+
+        // 1. Yöneticiler sayfasını görüntüleme
+        $response = $this->actingAs($admin, 'admin')->get(route('admin.admins'));
+        $response->assertStatus(200);
+        $response->assertSee('Yönetici Yönetimi');
+
+        // 2. Yeni yönetici ekleme
+        $storeResponse = $this->actingAs($admin, 'admin')->post(route('admin.admins.store'), [
+            'name'     => 'Yeni Admin',
+            'username' => 'yeniadmin',
+            'email'    => 'yeniadmin@example.com',
+            'password' => 'secret123',
+            'role'     => 'admin',
+        ]);
+
+        $storeResponse->assertSessionHas('status');
+        $this->assertDatabaseHas('admins', ['username' => 'yeniadmin']);
+
+        $newAdmin = \App\Models\Admin::where('username', 'yeniadmin')->first();
+
+        // 3. Durumunu değiştirme
+        $toggleResponse = $this->actingAs($admin, 'admin')->post(route('admin.admins.toggle_status', $newAdmin->id));
+        $toggleResponse->assertSessionHas('status');
+        $this->assertFalse((bool) $newAdmin->fresh()->is_active);
+
+        // 4. Yöneticiyi silme
+        $deleteResponse = $this->actingAs($admin, 'admin')->delete(route('admin.admins.destroy', $newAdmin->id));
+        $deleteResponse->assertSessionHas('status');
+        $this->assertDatabaseMissing('admins', ['id' => $newAdmin->id]);
+    }
+
+    public function test_admin_can_view_and_destroy_showcase_video(): void
+    {
+        $admin = \App\Models\Admin::firstOrCreate(
+            ['username' => 'emrah'],
+            [
+                'name'      => 'Emrah',
+                'email'     => 'emrah@aiajan.com.tr',
+                'password'  => Hash::make('985758'),
+                'role'      => 'super_admin',
+                'is_active' => true,
+            ]
+        );
+
+        $user = User::create([
+            'name'       => 'Vitrin Sahibi',
+            'email'      => 'vitrin@example.com',
+            'username'   => 'vitrinsahibi',
+            'role'       => 'user',
+            'google_sub' => 'sub_vitrin_1',
+        ]);
+
+        $channel = \App\Models\YouTubeChannel::create([
+            'youtube_channel_id' => 'UC_SHOWCASE_CH',
+            'title'              => 'Vitrin Kanalı',
+            'is_active'          => true,
+        ]);
+
+        $video = \App\Models\Video::create([
+            'youtube_video_id'   => 'v_showcase_999',
+            'youtube_channel_id' => $channel->id,
+            'title'              => 'Harika Vitrin Videosu',
+            'availability'       => 'available',
+        ]);
+
+        $selection = \App\Models\UserVideoSelection::create([
+            'user_id'  => $user->id,
+            'video_id' => $video->id,
+        ]);
+
+        // Sayfayı görüntüleme
+        $response = $this->actingAs($admin, 'admin')->get(route('admin.showcase_videos'));
+        $response->assertStatus(200);
+        $response->assertSee('Vitrin Videoları');
+        $response->assertSee('Harika Vitrin Videosu');
+
+        // Vitrinden kaldırma
+        $destroyResponse = $this->actingAs($admin, 'admin')->delete(route('admin.showcase_videos.destroy', $selection->id));
+        $destroyResponse->assertSessionHas('status');
+        $this->assertDatabaseMissing('user_video_selections', ['id' => $selection->id]);
     }
 
     public function test_admin_can_access_users_management_page(): void

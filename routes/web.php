@@ -81,6 +81,12 @@ Route::prefix('yonetim')->name('admin.')->group(function () {
         Route::get('/kullanicilar', [AdminDashboardController::class, 'users'])->name('users');
         Route::get('/kanallar', [AdminDashboardController::class, 'channels'])->name('channels');
         Route::post('/kanallar/sahipsiz-temizle', [AdminDashboardController::class, 'cleanOrphanChannels'])->name('channels.clean_orphans');
+        Route::get('/vitrin-videolari', [AdminDashboardController::class, 'showcaseVideos'])->name('showcase_videos');
+        Route::delete('/vitrin-videolari/{selection}', [AdminDashboardController::class, 'destroyShowcaseVideo'])->name('showcase_videos.destroy');
+        Route::get('/yoneticiler', [AdminDashboardController::class, 'admins'])->name('admins');
+        Route::post('/yoneticiler', [AdminDashboardController::class, 'storeAdmin'])->name('admins.store');
+        Route::delete('/yoneticiler/{admin}', [AdminDashboardController::class, 'destroyAdmin'])->name('admins.destroy');
+        Route::post('/yoneticiler/{admin}/durum', [AdminDashboardController::class, 'toggleAdminStatus'])->name('admins.toggle_status');
         Route::post('/kullanici/{user}/rol', [AdminDashboardController::class, 'toggleRole'])->name('users.toggle_role');
         Route::post('/kullanici/{user}/durum', [AdminDashboardController::class, 'toggleStatus'])->name('users.toggle_status');
         Route::delete('/kullanici/{user}', [AdminDashboardController::class, 'destroyUser'])->name('users.destroy');

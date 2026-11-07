@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin;
 use App\Models\PlatformFollow;
 use App\Models\User;
 use App\Models\UserVideoSelection;
@@ -11,7 +12,9 @@ use App\Models\YouTubeChannel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -26,6 +29,7 @@ class DashboardController extends Controller
         $totalVideos = Video::count();
         $totalFollows = PlatformFollow::count();
         $followsToday = PlatformFollow::whereDate('created_at', today())->count();
+        $totalAdmins = Admin::count();
         $activeSupporters = DB::table('supporter_statuses')
             ->where('status', 'active')
             ->where('ends_at', '>', now())
@@ -34,9 +38,9 @@ class DashboardController extends Controller
             ->where('action', 'contact_form_submitted')
             ->count();
 
-        // 2. Son Eklenen YouTube Kanalları (10 adet)
-        $recentChannels = YouTubeChannel::withCount('videos')
-            ->latest('last_synced_at')
+        // 2. Vitrindeki Videolar (Kullanıcıların eklediği güncel vitrin videoları)
+        $recentShowcaseVideos = UserVideoSelection::with(['user', 'video.channel'])
+            ->latest('id')
             ->limit(10)
             ->get();
 
@@ -44,7 +48,7 @@ class DashboardController extends Controller
         $recentMessages = DB::table('audit_logs')
             ->where('action', 'contact_form_submitted')
             ->latest('id')
-            ->limit(10)
+            ->limit(8)
             ->get()
             ->map(function ($row) {
                 $meta = json_decode((string) $row->metadata, true) ?: [];
@@ -61,7 +65,7 @@ class DashboardController extends Controller
 
         // 4. Sistem & Telemetri
         $systemInfo = [
-            'version'     => config('version.current', '1.5.9'),
+            'version'     => config('version.current', '1.6.6'),
             'release'     => config('version.release_name', 'YouTube Keşif'),
             'php_version' => PHP_VERSION,
             'laravel_ver' => app()->version(),
@@ -77,21 +81,22 @@ class DashboardController extends Controller
             'totalVideos',
             'totalFollows',
             'followsToday',
+            'totalAdmins',
             'activeSupporters',
             'totalMessages',
-            'recentChannels',
+            'recentShowcaseVideos',
             'recentMessages',
             'systemInfo'
         ));
     }
 
     /**
-     * Ayrı Kullanıcı Yönetimi Sayfası
+     * Ayrı Kullanıcı Yönetimi Sayfası (Normal İçerik Üreticiler)
+     * Üyelerden admin seçimi kaldırıldı; herkes standart üreticidir.
      */
     public function users(Request $request): View
     {
         $search = trim((string) $request->input('search', ''));
-        $role = $request->input('role');
         $status = $request->input('status');
 
         $query = User::with('activeChannelLink.channel')->latest('id');
@@ -104,10 +109,6 @@ class DashboardController extends Controller
             });
         }
 
-        if (in_array($role, ['admin', 'user'], true)) {
-            $query->where('role', $role);
-        }
-
         if (in_array($status, ['active', 'suspended'], true)) {
             $query->where('status', $status);
         }
@@ -116,7 +117,7 @@ class DashboardController extends Controller
         $totalUsers = User::count();
         $totalChannels = YouTubeChannel::count();
 
-        return view('admin.users', compact('users', 'search', 'role', 'status', 'totalUsers', 'totalChannels'));
+        return view('admin.users', compact('users', 'search', 'status', 'totalUsers', 'totalChannels'));
     }
 
     /**
@@ -142,6 +143,115 @@ class DashboardController extends Controller
         $orphanCount = YouTubeChannel::whereDoesntHave('links')->count();
 
         return view('admin.channels', compact('channels', 'search', 'totalChannels', 'orphanCount'));
+    }
+
+    /**
+     * Vitrindeki Videolar Listesi (Kullanıcıların eklediği tüm videolar)
+     */
+    public function showcaseVideos(Request $request): View
+    {
+        $search = trim((string) $request->input('search', ''));
+
+        $query = UserVideoSelection::with(['user', 'video.channel'])->latest('id');
+
+        if ($search !== '') {
+            $query->whereHas('video', function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('youtube_video_id', 'like', "%{$search}%");
+            })->orWhereHas('user', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $selections = $query->paginate(24)->withQueryString();
+        $totalShowcaseVideos = UserVideoSelection::count();
+
+        return view('admin.showcase_videos', compact('selections', 'search', 'totalShowcaseVideos'));
+    }
+
+    /**
+     * Seçilen videoyu vitrinden kaldırır.
+     */
+    public function destroyShowcaseVideo(Request $request, UserVideoSelection $selection): RedirectResponse
+    {
+        $videoTitle = $selection->video?->title ?: 'Video';
+        $selection->delete();
+
+        return back()->with('status', "“{$videoTitle}” vitrinden başarıyla kaldırıldı.");
+    }
+
+    /**
+     * Müstakil Yöneticiler Yönetimi Sayfası (admins tablosu)
+     */
+    public function admins(): View
+    {
+        $admins = Admin::latest('id')->get();
+        $currentAdmin = Auth::guard('admin')->user();
+
+        return view('admin.admins', compact('admins', 'currentAdmin'));
+    }
+
+    /**
+     * Yeni Yönetici Ekle
+     */
+    public function storeAdmin(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name'     => ['required', 'string', 'max:100'],
+            'username' => ['required', 'string', 'max:50', 'alpha_dash', 'unique:admins,username'],
+            'email'    => ['required', 'email', 'max:150', 'unique:admins,email'],
+            'password' => ['required', 'string', 'min:6'],
+            'role'     => ['required', 'in:super_admin,admin'],
+        ], [
+            'username.unique' => 'Bu kullanıcı adı zaten başka bir yöneticiye ait.',
+            'email.unique'    => 'Bu e-posta adresi zaten kullanımda.',
+            'password.min'    => 'Yönetici parolası en az 6 karakter olmalıdır.',
+        ]);
+
+        Admin::create([
+            'name'       => $validated['name'],
+            'username'   => strtolower($validated['username']),
+            'email'      => strtolower($validated['email']),
+            'password'   => Hash::make($validated['password']),
+            'role'       => $validated['role'],
+            'is_active'  => true,
+        ]);
+
+        return back()->with('status', "“{$validated['name']}” adlı yeni yönetici hesabı başarıyla oluşturuldu.");
+    }
+
+    /**
+     * Yönetici Hesabını Sil
+     */
+    public function destroyAdmin(Request $request, Admin $admin): RedirectResponse
+    {
+        $currentAdmin = Auth::guard('admin')->user();
+        if ($currentAdmin && $currentAdmin->id === $admin->id) {
+            return back()->withErrors(['admin' => 'Kendi yönetici hesabınızı silemezsiniz.']);
+        }
+
+        $name = $admin->name;
+        $admin->delete();
+
+        return back()->with('status', "“{$name}” adlı yönetici hesabı sistemden silindi.");
+    }
+
+    /**
+     * Yönetici Durumunu Değiştir (Aktif / Pasif)
+     */
+    public function toggleAdminStatus(Request $request, Admin $admin): RedirectResponse
+    {
+        $currentAdmin = Auth::guard('admin')->user();
+        if ($currentAdmin && $currentAdmin->id === $admin->id) {
+            return back()->withErrors(['admin' => 'Kendi yönetici hesabınızın durumunu değiştiremezsiniz.']);
+        }
+
+        $newStatus = !$admin->is_active;
+        $admin->update(['is_active' => $newStatus]);
+        $statusText = $newStatus ? 'aktif hale getirildi' : 'pasife alındı';
+
+        return back()->with('status', "“{$admin->name}” yöneticisi {$statusText}.");
     }
 
     /**
@@ -172,19 +282,11 @@ class DashboardController extends Controller
     }
 
     /**
-     * Kullanıcı rolünü değiştirir (admin <-> user).
+     * Kullanıcı rolünü değiştirir (Geriye dönük uyumluluk için korundu).
      */
     public function toggleRole(Request $request, User $user): RedirectResponse
     {
-        $currentAdmin = $request->user();
-        if ($currentAdmin->id === $user->id) {
-            return back()->withErrors(['admin' => 'Kendi yönetici rolünüzü değiştiremezsiniz.']);
-        }
-
-        $newRole = $user->role === 'admin' ? 'user' : 'admin';
-        $user->update(['role' => $newRole]);
-
-        return back()->with('status', "{$user->name} kullanıcısının rolü '{$newRole}' olarak güncellendi.");
+        return back()->withErrors(['admin' => 'Üyelerden yönetici atama özelliği güvenlik nedeniyle kaldırılmıştır. Lütfen yöneticileri Yöneticiler sayfasından yönetin.']);
     }
 
     /**
@@ -192,11 +294,6 @@ class DashboardController extends Controller
      */
     public function toggleStatus(Request $request, User $user): RedirectResponse
     {
-        $currentAdmin = $request->user();
-        if ($currentAdmin->id === $user->id) {
-            return back()->withErrors(['admin' => 'Kendi hesap durumunuzu askıya alamazsınız.']);
-        }
-
         $newStatus = $user->status === 'active' ? 'suspended' : 'active';
         $user->update(['status' => $newStatus]);
 
@@ -210,7 +307,7 @@ class DashboardController extends Controller
     {
         $currentAdmin = $request->user('admin') ?? $request->user();
         if ($currentAdmin && $currentAdmin instanceof User && $currentAdmin->id === $user->id) {
-            return back()->withErrors(['admin' => 'Kendi yönetici hesabınızı silemezsiniz.']);
+            return back()->withErrors(['admin' => 'Kendi hesabınızı silemezsiniz.']);
         }
 
         $userName = $user->name;
@@ -238,24 +335,16 @@ class DashboardController extends Controller
         $googleChannelId = $channel->youtube_channel_id;
 
         DB::transaction(function () use ($channel, $googleChannelId) {
-            // 1. Bu kanala ait videoların ID listesini al
             $videoIds = Video::where('youtube_channel_id', $channel->id)->pluck('id');
 
-            // 2. Vitrindeki video seçimlerini temizle
             if ($videoIds->isNotEmpty()) {
                 UserVideoSelection::whereIn('video_id', $videoIds)->delete();
             }
 
-            // 3. Bu kanala ait videoları sil
             Video::where('youtube_channel_id', $channel->id)->delete();
-
-            // 4. Bu kanala yapılan platform takiplerini sil
             PlatformFollow::where('youtube_channel_id', $channel->id)->delete();
-
-            // 5. Kullanıcı-kanal eşleşmelerini sil
             DB::table('user_channel_links')->where('youtube_channel_id', $channel->id)->delete();
 
-            // 6. Kullanıcıların google_channel_ids JSON dizisinden bu kanalı kaldır
             if (!empty($googleChannelId)) {
                 $affectedUsers = User::whereNotNull('google_channel_ids')->get();
                 foreach ($affectedUsers as $u) {
@@ -267,7 +356,6 @@ class DashboardController extends Controller
                 }
             }
 
-            // 7. Kanal kaydını sil
             $channel->delete();
         });
 
@@ -283,3 +371,4 @@ class DashboardController extends Controller
         return back()->with('status', 'Sistem önbellekleri (config, route, view) başarıyla temizlendi.');
     }
 }
+
