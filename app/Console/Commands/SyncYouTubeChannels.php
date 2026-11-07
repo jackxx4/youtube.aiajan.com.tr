@@ -158,16 +158,6 @@ class SyncYouTubeChannels extends Command
                     );
                 }
 
-                // Sadece yeni videolar başarıyla alındıysa eski videoları devre dışı bırak
-                if (!empty($videoIds)) {
-                    Video::where('youtube_channel_id', $link->channel->id)
-                        ->whereNotIn('youtube_video_id', $videoIds)
-                        ->where('availability', 'available')
-                        ->update([
-                            'availability' => 'unavailable',
-                            'last_checked_at' => now(),
-                        ]);
-                }
 
                 $this->line('✓ Senkronize edildi: ' . $link->channel->title);
             } catch (Throwable $e) {
